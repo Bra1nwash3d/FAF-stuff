@@ -41,6 +41,7 @@ POINTS_PER_CHATLVL = 5
 CHATLVL_TOPPLAYERS = {}
 CHATPOINTS_REMOVAL_IF_KICKED = 20
 
+useDebugPrint = True
 useLSTM = False
 
 
@@ -65,6 +66,10 @@ class Plugin(object):
         global NICKSERVRESPONSESLOCK, CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK = threading.Lock()
         NICKSERVRESPONSESLOCK = threading.Lock()
+
+    def debugPrint(self, text):
+        if useDebugPrint:
+            print(text)
 
     @classmethod
     def reload(cls, old):
@@ -721,6 +726,7 @@ class Plugin(object):
             return
         global CHATLVL_COMMANDLOCK, CHATLVL_RESETNAME, CHATLVL_RESETCOUNT
         CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chattip')
         channel = target
         if self.spam_protect('chattip', mask, target, args, specialSpamProtect='chattip', ircSpamProtect=False):
             channel = mask.nick
@@ -739,10 +745,12 @@ class Plugin(object):
         except:
             self.bot.action(channel, "Failed to send points! Are you sure you gave me a number?")
             CHATLVL_COMMANDLOCK.release()
+            self.debugPrint('commandlock release chattip 1')
             return
         _, points = self.Chatpoints.transferPointsByIdsSimple(takername, givername, points, partial=True, addTo='chattip')
         if points < 1:
             CHATLVL_COMMANDLOCK.release()
+            self.debugPrint('commandlock release chattip 2')
             return
 
         self.addChatEvent('chattip', {
@@ -768,6 +776,7 @@ class Plugin(object):
                 "add": addstring,
             }))
         CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chattip eof')
 
     @asyncio.coroutine
     def __maskToFafId(self, mask):
@@ -863,8 +872,9 @@ class Plugin(object):
             %%chatstats roulette minplayers <playercount>
         """
         roulette, minplayers, name, playercount = args.get('roulette'), args.get('minplayers'), args.get('<name>'), args.get('<playercount>')
+        channel = target
         if self.spam_protect('chatstats', mask, target, args, specialSpamProtect='chatstats'):
-            return
+            channel = mask.nick
         global CHATLVLEVENTDATA
         if roulette:
             rouletteevents = []
@@ -906,7 +916,7 @@ class Plugin(object):
             hwinnername = self.getUnpingableName(winnername)
             roiname = self.Chatpoints.getById(roiwinner)['n']
             roiwinnername = self.getUnpingableName(roiname)
-            self.bot.action(target, "Chatroulette stats! Total games: {count}, total points bet: {totalpoints}, average points per game: {avg}, "\
+            self.bot.action(channel, "Chatroulette stats! Total games: {count}, total points bet: {totalpoints}, average points per game: {avg}, "\
                                     "highest stake game: {hpoints} points won by {hwinner}, "\
                                     "highest ROI game: (R={roiwin}; I={roibet}, ratio={roiratio}) by {roiwinner}".format(**{
                     "count": str(gamecount),
@@ -933,6 +943,7 @@ class Plugin(object):
             return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatlvlpoints')
         add, remove, name, points = args.get('add'), args.get('remove'), args.get('<name>'), args.get('<points>')
         try:
             points = int(points)
@@ -944,6 +955,7 @@ class Plugin(object):
         self.Chatpoints.updateById(name, delta={'p' : points}, allowNegative=False, partial=True)
         self.bot.action(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatlvlpoints eof')
 
     @command(permission='admin', show_in_help_list=False)
     @asyncio.coroutine
@@ -957,6 +969,7 @@ class Plugin(object):
             return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatslap')
         name, points = args.get('<name>'), args.get('<points>')
         try:
             points = abs(int(points))
@@ -973,6 +986,7 @@ class Plugin(object):
             'points' : points,
         })
         CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatslap eof')
 
     @command(permission='admin', show_in_help_list=False, public=False)
     def chatgamesadmin(self, mask, target, args):
@@ -982,6 +996,7 @@ class Plugin(object):
         """
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatgamesadmin')
         restore, roulette = args.get('restore'), args.get('roulette')
         if restore:
             keyFrom, keyTo = 'reserved', 'p'
@@ -990,6 +1005,7 @@ class Plugin(object):
             self.Chatpoints.transferBetweenKeysForAll(keyFrom, keyTo, 99999999999, deleteOld=True)
         self.bot.privmsg(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatgamesadmin eof')
 
     @command
     @asyncio.coroutine
@@ -1010,6 +1026,7 @@ class Plugin(object):
         """
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatroulette')
         points, use = args.get('<points/all>'), False
         allin = points in ["all", "allin"]
         if allin:
@@ -1019,6 +1036,7 @@ class Plugin(object):
                 points = abs(int(points))
             except:
                 CHATLVL_COMMANDLOCK.release()
+                self.debugPrint('commandlock release chatroulette 1')
                 return
         worked, points = self.Chatpoints.transferBetweenKeysById(mask.nick, 'p', 'chatroulette-reserved', points, partial=allin)
         if not worked:
@@ -1026,16 +1044,19 @@ class Plugin(object):
                     "name": mask.nick,
                 }))
             CHATLVL_COMMANDLOCK.release()
+            self.debugPrint('commandlock release chatroulette 2')
             return
         points = int(points)
         if points < 1:
             CHATLVL_COMMANDLOCK.release()
+            self.debugPrint('commandlock release chatroulette 3')
             return
         seconds = 20
         addedSeconds = min([seconds, points])  # to roulette timer
         if (not self.chatroulettethread):
             if self.spam_protect('chatroulette', mask, target, args, specialSpamProtect='chatroulette'):
                 CHATLVL_COMMANDLOCK.release()
+                self.debugPrint('commandlock release chatroulette 4')
                 return
             self.chatroulettethread = timedInputAccumulatorThread(callbackf=self.on_chatroulette_finished_noasync, args={"channel":target}, seconds=seconds, maxduration=60)
             self.chatroulettethread.start()
@@ -1057,6 +1078,7 @@ class Plugin(object):
                     "points": str(points),
                 }))
         CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatroulette eof')
 
     def on_chatroulette_finished_noasync(self, args, inputs):
         self.loop.run_until_complete(self.on_chatroulette_finished(args, inputs))
@@ -1065,6 +1087,7 @@ class Plugin(object):
     def on_chatroulette_finished(self, args, inputs):
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire roulettefinished')
         result = {}
         # let bot join the roulette... for free
         for i in inputs:
@@ -1073,9 +1096,8 @@ class Plugin(object):
         maibet = 1 + int(totalpoints/200)
         result[self.bot.config['nick']] = maibet
         winner, _ = self.pickWeightedRandom(result)
-        print('-'*10)
-        print('roulette done!', winner, args.get('channel'), totalpoints)
-        print('result: ', result)
+        print('- roulette done!', winner, args.get('channel'), totalpoints)
+        print('- result: ', result)
         # winner print
         #TODO write stuff non-delayed :(
         if ((len(result) == 2 and maibet) or (len(result) == 1 and not maibet)) and (not (winner == self.bot.config['nick'])):
@@ -1103,18 +1125,20 @@ class Plugin(object):
         self.Chatpoints.transferByIds(winner, result, receiverKey='p', giverKey='chatroulette-reserved', allowNegative=False, partial=True)
         self.Chatpoints.transferByIds(winner, result, receiverKey='chatroulette', giverKey='chatroulette', allowNegative=True, partial=False)
         # cooldown, data
-        self.spam_protect('chatroulette', self.bot.config['nick'], args.get('channel'), args, specialSpamProtect='chatroulette', setToNow=True)
+        if self.chatroulettethread:
+            self.chatroulettethread.stop()
+            self.chatroulettethread = False
         self.addChatEvent('chatroulette', {
             'winner' : winner,
             'bets' : result
         })
-        self.chatroulettethread.stop()
-        self.chatroulettethread = False
         self.save(args={
             'path' : 'roulette/',
             'keep' : 5,
         })
         CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release roulettefinished eof')
+        self.spam_protect('chatroulette', self.bot.config['nick'], args.get('channel'), args, specialSpamProtect='chatroulette', setToNow=True)
 
     def addChatEvent(self, key, eventdct):
         if not CHATLVLEVENTDATA.get(key, False):

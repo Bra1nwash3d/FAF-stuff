@@ -17,6 +17,9 @@ class Points():
                 self.elements = json.load(file)
         except:
             pass
+        self.pointsByLevel = [0]
+        for level in range(1, 250):
+            self.pointsByLevel.append(self.pointsByLevel[level-1] + self.getPointsForLevelUp(level))
 
     def getPointsForLevelUp(self, level):
         if level <= 0:
@@ -47,18 +50,19 @@ class Points():
     def getPointsById(self, id):
         return self.getById(id).get('p', 0)
 
+    def getLevelRemainingNextWithPoints(self, points):
+        level = 0
+        for pbl in self.pointsByLevel:
+            if points < pbl:
+                break
+            level += 1
+        remaining = points - self.pointsByLevel[level-1]
+        toLevelUp = self.getPointsForLevelUp(level)
+        return level, remaining, toLevelUp
+
     def getPointDataById(self, id):
         element = self.getById(id)
-        level = 1
-        toLevelUp = POINTS_PER_CHATLVL
-        remaining = element.get('p', 0)
-        for i in range(999999):
-            if remaining < toLevelUp:
-                toLevelUp = self.getPointsForLevelUp(level)
-                break
-            remaining -= toLevelUp
-            level += 1
-            toLevelUp = self.getPointsForLevelUp(level)
+        level, remaining, toLevelUp = self.getLevelRemainingNextWithPoints(element.get('p', 0))
         return {
             'n' : element.get('n', '-'),
             'p' : element.get('p', 0),
