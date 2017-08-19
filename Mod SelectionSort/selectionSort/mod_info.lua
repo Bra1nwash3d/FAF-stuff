@@ -1,0 +1,9 @@
+name = "Selection Sort v0.2"
+version = 0.2
+copyright = ""
+description = "Groups the units in the selection panel. Possibly conflicts with other UI mods"
+author = "Myxir"
+uid = "cfe9131e-9324-4753-a9ca-46972127fe8c"
+identifier = ""
+exclusive = false
+ui_only = true

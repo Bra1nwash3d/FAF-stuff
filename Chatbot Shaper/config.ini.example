@@ -1,0 +1,34 @@
+[bot]
+nick = TheShaper
+username = TheShaper
+
+host = irc.faforever.com
+port = 6667
+
+includes =
+    irc3.plugins.command
+    shaper_plugin
+    irc3.plugins.storage
+
+storage = json://db.json
+
+autojoins =
+    lol_clan
+    shadows
+
+nickserv_password = ""
+
+spamprotect = 60
+spamprotect_music = 480
+
+[irc3.plugins.command]
+antiflood = true
+cmd = !
+guard = irc3.plugins.command.mask_based_policy
+
+[irc3.plugins.command.masks]
+# this section is used by the guard to secure the bot's command
+# change your nickname and uncomment the line below
+Washy!*@* = all_permissions
+ReolIsLove!*@* = all_permissions
+* = view

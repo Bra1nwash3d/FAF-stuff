@@ -1,0 +1,16 @@
+name = "Hotkey Labels"
+version = 1.5
+copyright = "Do whatever you want with it, feel free to add stuff, copy, edit, delete code or publish own versions"
+description = "Adds labels to the building and order panels to know which buttons to press"
+author = "Myxir"
+uid = "e338e34e-58da-11e6-8b77-86f30ca893d3"
+--icon = ""
+selectable = true
+enabled = true
+exclusive = false
+ui_only = true
+requires = {}
+requiresNames = {}
+conflicts = {}
+before = {}
+after = {}

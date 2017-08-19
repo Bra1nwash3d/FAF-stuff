@@ -1,0 +1,13 @@
+name = "d[e]cals"
+version = 1
+copyright = "feel free to change it however you want, icon rights belong to their creators"
+description = "spawning clan/personal/faction decals for players"
+author = "Myxir, based on work by Green_Nymph"
+uid = "bdc0a95c-33b5-11e6-ac61-9e71128cae77"
+url = ""
+icon = "/mods/d[e]cals/decals.png"
+identifier = ""
+exclusive = false
+ui_only = true
+--requires = {"zcbf6277-24e3-437a-b968-Common-v1"}
+--before = {"zcbf6277-24e3-437a-b968-Common-v1"}

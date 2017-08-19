@@ -1,0 +1,9 @@
+*.json
+*.pyc
+.coverage
+.idea
+/Chatbot MAI/config.ini
+/Chatbot MAI/test.py
+/Chatbot MAI/backups
+/Chatbot MAI/files
+/Chatbot Shaper/config.ini
