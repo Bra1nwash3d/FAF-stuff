@@ -205,6 +205,11 @@ class Points():
     def getSortedBy(self, by='p', reversed=True):
         return sorted([(k, self.elements[k].get(by, 0)) for k in self.elements.keys()], reverse=reversed, key=lambda v: v[1])
 
+    def getSortedByMultiple(self, byPositive=['p'], byNegative=[], reversed=True):
+        return sorted(
+            [(k, sum([self.elements[k].get(bp, 0) for bp in byPositive])-sum([self.elements[k].get(bp, 0) for bp in byNegative]))
+            for k in self.elements.keys()], reverse=reversed, key=lambda v: v[1])
+
     """
     def getByName(self, name):
         return self.elements.get(self.getIdByName(name), self.__getNewDefault(name=name))
