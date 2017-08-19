@@ -38,7 +38,7 @@ function createRangeRingPreviews(units)
             if radius then
                 if (not ACSdata.rings.buildrange[radius]) then
                     local texture = acs_modpath..'textures/range_ring.dds'
-                    createRing(ACSdata.rings.buildrange, texture, radius, 2, 2, 2, 2)
+                    createRing(ACSdata.rings.buildrange, texture, radius, 2, 0, 2, 0)
                 end
             end
         end

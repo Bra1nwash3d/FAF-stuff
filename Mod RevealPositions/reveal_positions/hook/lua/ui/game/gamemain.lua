@@ -1,14 +1,16 @@
 local Button = import('/lua/maui/button.lua').Button
 
-local disappearTimeIfObs = 40
-
 
 ForkThread(function()
 	WaitSeconds(3)
 	while GetGameTimeSeconds() < 3 do
 		WaitSeconds(0.1)
 	end
-
+    local spawn = SessionGetScenarioInfo().Options.TeamSpawn
+    if spawn and table.find({'random', 'balanced', 'balanced_flex', 'random_reveal', 'balanced_reveal', 'balanced_flex_reveal'}, spawn) then
+        return
+    end
+    
 	local saveData = {}
 	doscript('/lua/dataInit.lua', saveData)
 	doscript(SessionGetScenarioInfo().save, saveData)
@@ -19,40 +21,39 @@ ForkThread(function()
 			startPositions[markerName] = markerTable.position
 		end
 	end
-	
-	local factions = {
-		[0] = "UEF",
-		[1] = "Aeon",
-		[2] = "Cybran",
-		[3] = "Sera"
-	}
 
-	local removeAtTime = false
-	if GetFocusArmy() < 0 then
-		removeAtTime = disappearTimeIfObs
-	end
-	for armyIndex, armyData in GetArmiesTable().armiesTable do
-		if (not armyData.civilian) and (not isAllyOrObs(GetFocusArmy(), armyIndex)) then
-			local armyName = armyData.nickname
-			if armyData.faction >= 0 and armyData.faction <= table.getn(factions) then
-				armyName = armyName..' ['..factions[armyData.faction]..']'
-			end
-			createPositionMarker(armyName, startPositions[armyData.name][1], startPositions[armyData.name][2], startPositions[armyData.name][3], removeAtTime)
-		end
-	end    
+	local armyTable = GetArmiesTable().armiesTable
+	local armyfocus = GetFocusArmy()
+    local factions = {
+        [0] = "UEF",
+        [1] = "Aeon",
+        [2] = "Cybran",
+        [3] = "Sera",
+        [4] = "Nomads"
+    }
+    for armyIndex, armyData in armyTable do
+        local generateMarker = true
+        if armyfocus > -1 then
+            if IsAlly(GetFocusArmy(), armyIndex) then
+                generateMarker = false
+            end
+        end
+        if armyData.civilian then
+            generateMarker = false
+        end
+        if generateMarker then
+            local armyName = armyData.nickname
+            if armyData.faction >= 0 and armyData.faction <= table.getn(factions) then
+                armyName = armyName..' ['..factions[armyData.faction]..']'
+            end
+            createPositionMarker(armyName, startPositions[armyData.name][1], startPositions[armyData.name][2], startPositions[armyData.name][3], armyfocus == -1, table.getn(armyTable) )
+        end
+    end
 end)
 
 
-function isAllyOrObs(army1, army2)
-	if army1 < 0 then
-		return false -- need false so that we have labels for all players
-	end
-	return IsAlly(army1, army2)
-end
-
-
-function createPositionMarker(armyName, posX, posY, posZ, removeAtTime)
-	if (not posX) or (not posY) or (not posZ) then
+function createPositionMarker(armyName, posX, posY, posZ, replay, playercount)
+	if not (posX or posY or posZ) then
 		return 
 	end 
 	local pos = Vector(posX, posY, posZ)
@@ -69,6 +70,8 @@ function createPositionMarker(armyName, posX, posY, posZ, removeAtTime)
 	posMarkerButton.Height:Set(25)
 	posMarkerButton.pos = pos
 	posMarkerButton.Depth:Set(11)
+    posMarker.desintegrate = replay
+    posMarker.playercount = playercount
 
 	posMarkerButton:EnableHitTest(true)
 	posMarkerButton.OnClick = function(self, event)
@@ -78,27 +81,18 @@ function createPositionMarker(armyName, posX, posY, posZ, removeAtTime)
 		posMarkerButton = nil
 	end
 
-	local defaultOnFrame = function(self, delta)
+	posMarker.OnFrame = function(self, delta)
 		local worldView = import('/lua/ui/game/worldview.lua').viewLeft
 		local pos = worldView:Project(Vector(posMarker.pos.x, posMarker.pos.y, posMarker.pos.z))
+
 		LayoutHelpers.AtLeftTopIn(posMarker, worldView, pos.x - posMarker.Width() / 2, pos.y - posMarker.Height() / 2 + 1)
 		LayoutHelpers.AtLeftTopIn(posMarkerButton, worldView, pos.x - posMarker.Width() / 2, pos.y - posMarker.Height() / 2 + 1)
-	end
-
-	if removeAtTime then
-		posMarker.OnFrame = function(self, delta)
-			defaultOnFrame(self, delta)
-			if (GetGameTimeSeconds() > removeAtTime) then
-				posMarker:Destroy()
-				posMarker = nil
-				posMarkerButton:Destroy()
-				posMarkerButton = nil  
-			end
-		end
-	else
-		posMarker.OnFrame = function(self, delta)
-			defaultOnFrame(self, delta)
-		end
+        if GetGameTimeSeconds() > self.playercount*10 and self.desintegrate then
+            posMarker:Destroy()
+            posMarker = nil
+            posMarkerButton:Destroy()
+            posMarkerButton = nil  
+        end
 	end
 		
 	posMarker.armyName = UIUtil.CreateText(posMarker, armyName, 12, UIUtil.bodyFont)

@@ -1,4 +1,4 @@
-# FA Forever - Collection of stuff made for the the [Forged Alliance Forever](http://www.faforever.com/) community and for personal fun.
+# FAF Stuff - Collection of stuff made for the the [Forged Alliance Forever](http://www.faforever.com/) community and for personal fun.
 
 ## Chatbots
 
