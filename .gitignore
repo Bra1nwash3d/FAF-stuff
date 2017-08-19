@@ -2,6 +2,7 @@
 *.pyc
 .coverage
 .idea
+/Chatbot Clanbot/config.ini
 /Chatbot MAI/config.ini
 /Chatbot MAI/test.py
 /Chatbot MAI/backups

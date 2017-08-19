@@ -20,4 +20,5 @@ Usage:
 ## Mods
 	
 Multiple of these mods have been [integrated](https://github.com/FAForever/fa) into the main game.
+
 Others can be used by copying their folder into the mod directory "C:\Users\%USERNAME%\Documents\My Games\Gas Powered Games\Supreme Commander Forged Alliance\Mods"
