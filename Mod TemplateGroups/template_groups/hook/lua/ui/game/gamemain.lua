@@ -10,7 +10,8 @@ function CreateUI(isReplay)
 			"Templates beginning with "..s,
 			{
 				action = "UI_Lua import('/lua/keymap/hotbuild.lua').buildActionTemplate(0, "..s..")",
-				category = "Template Groups", order = i,
+				category = "Template Groups",
+				order = i,
 			}
 		)
 	end
