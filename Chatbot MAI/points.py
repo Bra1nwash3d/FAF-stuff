@@ -21,22 +21,27 @@ class Points():
         for level in range(1, 250):
             self.pointsByLevel.append(self.pointsByLevel[level-1] + self.getPointsForLevelUp(level))
 
-    def getPointsForLevelUp(self, level):
-        if level <= 0:
-            return 0
-        return level * POINTS_PER_CHATLVL
-
     def save(self, path=False):
+        self.update_lock.acquire()
         if not path:
             path = self.jsonpath
         with open(path, 'w+') as file:
             json.dump(self.elements, file, indent=2)
             file.close()
+        self.update_lock.release()
+
+    def getFilePath(self):
+        return self.jsonpath
 
     def reset(self):
         self.update_lock.acquire()
         self.elements = {}
         self.update_lock.release()
+
+    def getPointsForLevelUp(self, level):
+        if level <= 0:
+            return 0
+        return level * POINTS_PER_CHATLVL
 
     def getIdByName(self, name):
         for key in self.elements.keys():
@@ -124,8 +129,8 @@ class Points():
         self.update_lock.release()
         return True
 
-    def updatePointsById(self, id, points):
-        return self.updateById(id, delta={'p' : points}, allowNegative=False)
+    def updatePointsById(self, id, points, partial=False):
+        return self.updateById(id, delta={'p' : points}, allowNegative=False, partial=partial)
 
     def transferBetweenKeysById(self, id, keyFrom, keyTo, amount, partial=False):
         """
@@ -210,6 +215,18 @@ class Points():
             [(k, sum([self.elements[k].get(bp, 0) for bp in byPositive])-sum([self.elements[k].get(bp, 0) for bp in byNegative]))
             for k in self.elements.keys()], reverse=reversed, key=lambda v: v[1])
 
+    def merge(self, mergeRemainingId, mergeRemovedId):
+        self.update_lock.acquire()
+        remaining = self.addNewIfNotExisting(mergeRemainingId)
+        remainingName = remaining['n']
+        removed = self.addNewIfNotExisting(mergeRemovedId)
+        for key in removed.keys():
+            print(key)
+            remaining[key] = remaining.get(key, 0) + removed[key]
+        remaining['n'] = remainingName
+        del self.elements[mergeRemovedId]
+        self.update_lock.release()
+
     """
     def getByName(self, name):
         return self.elements.get(self.getIdByName(name), self.__getNewDefault(name=name))
@@ -229,66 +246,3 @@ class Points():
     def updateByName(self, name, data={}, delta={}):
         return self.updateById(self.getIdByName(name), data=data, delta=delta)
     """
-
-    def printAll(self):
-        print(self.elements)
-
-
-
-
-p = Points('./chatlevel.json') # Points('./backups/test.json')
-
-#p.addNew('test2', data={'n' : 'test2'})
-if False:
-    #print(p.updateById('test3', delta={'p' : 5}))
-    #print(p.updateById('test2', delta={'p' : 5}))
-    #print(p.updateById('test1', delta={'p' : 5}))
-    p.transferPointsByIds('test3', {
-        'test2' : 2,
-        'test3' : 0
-    })
-    print(p.transferPointsByIdsSimple('test1', 'test2', 'all', partial=True))
-#print(p.updateById('test1', delta={'p' : 15}))
-#p.save()
-
-# convert old data to new data, aka remove levels
-if False:
-    path = './chatlevel.json'
-    try:
-        elems = {}
-        with open(path, 'r+') as file:
-            elems = json.load(file)
-        print(elems)
-        for key in elems.keys():
-            print(key)
-            elem = elems[key]
-            while elems[key]['l'] > 1:
-                elems[key]['l'] -= 1
-                elems[key]['p'] += p.getPointsForLevelUp(elems[key]['l'])
-            del elems[key]['l']
-        with open(path, 'w+') as file:
-            json.dump(elems, file, indent=2)
-            file.close()
-    except:
-        print('eh')
-        pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

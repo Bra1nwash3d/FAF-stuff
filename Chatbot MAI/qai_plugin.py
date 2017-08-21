@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import random
 import asyncio
+import requests
+import re
 
 import irc3
 from irc3.plugins.command import command
@@ -19,6 +21,7 @@ from timed_input_accumulator import timedInputAccumulatorThread
 from periodic_callback import periodicCallback
 from markov import Markov
 from points import Points
+from events import Events
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
@@ -29,19 +32,21 @@ NICKSERVRESPONSESLOCK = None
 TIMERS = {}
 DEFAULTCD = False
 
+RENAMED_REGEX_NAMES = re.compile("<td>.*?</td>")
+RENAMED_REGEX_CURRENTNAME = re.compile("<br /><b>.*?</b>")
+
 CHATLVL_COMMANDLOCK = False
 CHATLVL_RESETNAME = '#reset'
+CHATLVL_NORESETNAME = '#noreset'
+CHATLVL_NORESETDISCOUNT = 0.5
 CHATLVL_RESETCOUNT = 10000
 CHATLVL_EPOCH = 1
-CHATLVLFILE = False
 CHATLVLWORDS = {}
-CHATLVLEVENTDATAFILE = False
-CHATLVLEVENTDATA = {}
 POINTS_PER_CHATLVL = 5
 CHATLVL_TOPPLAYERS = {}
-CHATPOINTS_REMOVAL_IF_KICKED = 20
+CHATPOINTS_REMOVAL_IF_KICKED = 100
 
-useDebugPrint = True
+useDebugPrint = False
 useLSTM = False
 
 
@@ -129,11 +134,21 @@ class Plugin(object):
         print('kick', kicktarget)
         global CHATPOINTS_REMOVAL_IF_KICKED
         if not (kicktarget == self.bot.config['nick']):
-            self.addChatEvent('kick', {
+            self.Chatevents.addEvent('kick', {
                 'target' : kicktarget,
                 'points' : CHATPOINTS_REMOVAL_IF_KICKED
             })
-            self.update_chatlvl(kicktarget, kicktarget, -CHATPOINTS_REMOVAL_IF_KICKED)
+            self.Chatpoints.updatePointsById(kicktarget, -CHATPOINTS_REMOVAL_IF_KICKED, partial=True)
+
+    @irc3.event(irc3.rfc.MODE)
+    @asyncio.coroutine
+    def on_mode(self, *args, **kwargs):
+        print('MODE ', args, kwargs)
+        """
+        MODE  () {'modes': '+b', 'target': '#shadows', 'event': 'MODE', 'mask': 'Washy!Washy@Clk-4A328548.hsi13.unitymediagroup.de', 'data': '*!*@<ip/provider>'}
+        -b
+        """
+        pass
 
     @asyncio.coroutine
     def __isNickservIdentified(self, nick):
@@ -188,7 +203,7 @@ class Plugin(object):
         time.clock()
         t0 = time.clock()
         global TIMERS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD
-        global CHATLVLWORDS, CHATLVLFILE, CHATLVLEVENTDATAFILE, CHATLVLEVENTDATA, CHATLVL_TOPPLAYERS, CHATLVL_EPOCH
+        global CHATLVLWORDS,  CHATLVLEVENTDATA, CHATLVL_TOPPLAYERS, CHATLVL_EPOCH
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
@@ -203,12 +218,11 @@ class Plugin(object):
         CHATLVLWORDS = self.__dbGet(['chatlvlwords'])
         CHATLVLWORDS = self.__dbGet(['chatlvlwords'])
         CDPRIVILEDGEDUSERS = self.__dbGet(['cdprivilege'])
-        CHATLVLEVENTDATAFILE = self.bot.config.get('chateventstorage', './chatevents.json')
         CHATLVL_EPOCH = self.__dbGet(['chatlvlmisc', 'epoch'])
         self.AeolusMarkov = Markov(self, self.bot.config.get('markovwordsstorage_chat', './dbmarkovChat.json'))
         self.ChangelogMarkov = Markov(self, self.bot.config.get('markovwordsstorage_changelog', './dbmarkovChangelogs.json'))
-        CHATLVLFILE = self.bot.config.get('chatlevelstorage', './chatlevel.json')
-        self.Chatpoints = Points(CHATLVLFILE)
+        self.Chatpoints = Points(self.bot.config.get('chatlevelstorage', './chatlevel.json'))
+        self.Chatevents = Events(self.bot.config.get('chateventstorage', './chatevents.json'))
 
         try:
             self.chatroulettethread.stop()
@@ -222,12 +236,6 @@ class Plugin(object):
                                                   seconds=self.bot.config.get('autosave', 300))
         self.timedSavingThread.start()
         self.twitchthread = False
-
-        try:
-            with open(CHATLVLEVENTDATAFILE, 'r+') as file:
-                CHATLVLEVENTDATA = json.load(file)
-        except:
-            CHATLVLEVENTDATA = {}
 
         if useLSTM:
             from LSTMGen import LSTMGen
@@ -429,16 +437,13 @@ class Plugin(object):
 
     def save(self, args={}):
         self.__dbSave()
-        global CHATLVLFILE, CHATLVLS, CHATLVLEVENTDATAFILE, CHATLVLEVENTDATA
         self.Chatpoints.save()
-        with open(CHATLVLEVENTDATAFILE, 'w+') as file:
-            json.dump(CHATLVLEVENTDATA, file, indent=2)
-            file.close()
+        self.Chatevents.save()
         path = './backups/'+args.get('path', '')
         pathFull = path+str(int(time.time()))+"/"
         os.makedirs(pathFull, exist_ok=True)
-        shutil.copy2("./"+CHATLVLFILE, pathFull) # chatpoint backup
-        shutil.copy2("./"+CHATLVLEVENTDATAFILE, pathFull)
+        shutil.copy2("./"+self.Chatpoints.getFilePath(), pathFull) # chatpoint backup
+        shutil.copy2("./"+self.Chatevents.getFilePath(), pathFull)
         allRelevantBackups = [d[0] for d in os.walk(path)]
         for i in range(1, len(allRelevantBackups) - args.get('keep', 10)):
             shutil.rmtree(allRelevantBackups[i])
@@ -449,14 +454,14 @@ class Plugin(object):
         return True
 
     def chatreset(self):
-        global CHATLVLEVENTDATA, CHATLVL_EPOCH
+        global CHATLVL_EPOCH
         if not self.chatroulettethread:
             self.save(args = {
                 'path' : 'reset/'+str(CHATLVL_EPOCH)+'/',
                 'keep' : 100000,
             })
             self.Chatpoints.reset()
-            CHATLVLEVENTDATA = {}
+            self.Chatevents.reset()
             CHATLVL_EPOCH += 1
             self.save(args = {
                 'path' : 'post-reset/',
@@ -663,27 +668,6 @@ class Plugin(object):
             req = self.Chatpoints.getPointsForLevelUp(level)
         return level, points
 
-    def __totalChatPoints(self, level):
-        return sum([self.Chatpoints.getPointsForLevelUp(i) for i in range(1, level)])
-
-    def __on_chatlvl_up(self, name, id, channel, newlevel):
-        if name.startswith('#'):
-            print('level up: ', name, newlevel)
-            #return
-            self.bot.action(channel, "{object} leveled up to level {level}!".format(**{
-                "object": name,
-                "level": newlevel,
-            }))
-
-    def __on_chatlvl_down(self, name, id, channel, newlevel):
-        if name.startswith('#'):
-            print('level down: ', name, newlevel)
-            #return
-            self.bot.action(channel, "{object}'s level fell to {level}!".format(**{
-                "object": name,
-                "level": newlevel,
-            }))
-
     @command()
     @asyncio.coroutine
     def chatlvl(self, mask, target, args):
@@ -697,7 +681,7 @@ class Plugin(object):
             location = mask.nick
         name = args.get('<name>', False)
         if not name:
-            name = target
+            name = mask.nick
         data = self.Chatpoints.getPointDataById(name)
         tipstring, roulettestring = "", ""
         if data.get('chatroulette', False):
@@ -724,7 +708,7 @@ class Plugin(object):
         """
         if not (yield from self.__isNickservIdentified(mask.nick)):
             return
-        global CHATLVL_COMMANDLOCK, CHATLVL_RESETNAME, CHATLVL_RESETCOUNT
+        global CHATLVL_COMMANDLOCK, CHATLVL_RESETNAME, CHATLVL_NORESETNAME, CHATLVL_RESETCOUNT, CHATLVL_NORESETDISCOUNT
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chattip')
         channel = target
@@ -753,21 +737,25 @@ class Plugin(object):
             self.debugPrint('commandlock release chattip 2')
             return
 
-        self.addChatEvent('chattip', {
+        self.Chatevents.addEvent('chattip', {
             'giver' : givername,
             'taker' : takername,
             'points' : points,
         })
         addstring = ""
-        if takername == CHATLVL_RESETNAME:
+        if takername in [CHATLVL_RESETNAME, CHATLVL_NORESETNAME]:
             p = self.Chatpoints.getPointsById(CHATLVL_RESETNAME)
+            rp = self.Chatpoints.getPointsById(CHATLVL_NORESETNAME) * CHATLVL_NORESETDISCOUNT
+            resetNeeded = CHATLVL_RESETCOUNT + rp
             addstring = "{p} of {max} points for a reset collected!".format(**{
                 "p": format(p, '.1f'),
-                "max": str(CHATLVL_RESETCOUNT),
+                "max": str(resetNeeded),
             })
             channel = target
-            if p > CHATLVL_RESETCOUNT:
-                addstring = "Enough points to reset collected! RESETTING NOW"
+            if takername == CHATLVL_NORESETNAME:
+                addstring = "Reset delayed! " + addstring
+            elif (takername == CHATLVL_RESETNAME) and (p > resetNeeded):
+                addstring = "Enough points to reset collected! RESETTING NOW!"
                 self.chatreset()
         self.bot.action(channel, "{giver} tipped {p} points to {taker}! {add}".format(**{
                 "giver": givername,
@@ -875,12 +863,11 @@ class Plugin(object):
         channel = target
         if self.spam_protect('chatstats', mask, target, args, specialSpamProtect='chatstats'):
             channel = mask.nick
-        global CHATLVLEVENTDATA
         if roulette:
             rouletteevents = []
             if name:
                 id = name # to change
-                for game in CHATLVLEVENTDATA.get('chatroulette', {}):
+                for game in self.Chatevents.getData('chatroulette'):
                     if game['bets'].get(id, False):
                         rouletteevents.append(game)
             elif minplayers:
@@ -888,11 +875,11 @@ class Plugin(object):
                     playercount = int(playercount)
                 except:
                     playercount = 2
-                for game in CHATLVLEVENTDATA.get('chatroulette', {}):
+                for game in self.Chatevents.getData('chatroulette'):
                     if len(game['bets']) >= playercount:
                         rouletteevents.append(game)
             else:
-                rouletteevents = CHATLVLEVENTDATA.get('chatroulette', {})
+                rouletteevents = self.Chatevents.getData('chatroulette')
             if len(rouletteevents) == 0:
                 return "There are 0 events to talk about!"
             totalpoints = 0
@@ -980,7 +967,7 @@ class Plugin(object):
                 "name": name,
                 "points": str(points),
             }))
-        self.addChatEvent('chatslap', {
+        self.Chatevents.addEvent('chatslap', {
             'by' : mask.nick,
             'target' : name,
             'points' : points,
@@ -1052,7 +1039,7 @@ class Plugin(object):
             self.debugPrint('commandlock release chatroulette 3')
             return
         seconds = 20
-        addedSeconds = min([seconds, points])  # to roulette timer
+        addedSeconds = min([10, points])  # to roulette timer
         if (not self.chatroulettethread):
             if self.spam_protect('chatroulette', mask, target, args, specialSpamProtect='chatroulette'):
                 CHATLVL_COMMANDLOCK.release()
@@ -1122,13 +1109,14 @@ class Plugin(object):
                 }))
         # juggle points, remove MAI from the betting list
         del result[self.bot.config['nick']]
-        self.Chatpoints.transferByIds(winner, result, receiverKey='p', giverKey='chatroulette-reserved', allowNegative=False, partial=True)
+        self.Chatpoints.transferByIds(winner, result, receiverKey='p', giverKey='chatroulette-reserved', allowNegative=True, partial=True)
         self.Chatpoints.transferByIds(winner, result, receiverKey='chatroulette', giverKey='chatroulette', allowNegative=True, partial=False)
+        self.Chatpoints.transferBetweenKeysForAll('chatroulette-reserved', 'p', 99999999999, deleteOld=True) # recover original points which might lost to hickup etc
         # cooldown, data
         if self.chatroulettethread:
             self.chatroulettethread.stop()
             self.chatroulettethread = False
-        self.addChatEvent('chatroulette', {
+        self.Chatevents.addEvent('chatroulette', {
             'winner' : winner,
             'bets' : result
         })
@@ -1139,12 +1127,6 @@ class Plugin(object):
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release roulettefinished eof')
         self.spam_protect('chatroulette', self.bot.config['nick'], args.get('channel'), args, specialSpamProtect='chatroulette', setToNow=True)
-
-    def addChatEvent(self, key, eventdct):
-        if not CHATLVLEVENTDATA.get(key, False):
-            CHATLVLEVENTDATA[key] = []
-        eventdct['t'] = time.time()
-        CHATLVLEVENTDATA[key].append(eventdct)
 
     if False:
         @command(public=False, show_in_help_list=False)
@@ -1196,6 +1178,8 @@ class Plugin(object):
 
             %%maitest <name>
         """
+        self.Chatpoints.merge("test54", "Washy")
+        """
         name = args.get('<name>')
         #print('.')
         whois = yield from self.whois(nick=name)
@@ -1204,6 +1188,44 @@ class Plugin(object):
         self.bot.action(target, "{msg}".format(**{
                 "msg": "<3",
             }))
+        """
+
+    @command(public=False)
+    @asyncio.coroutine
+    def helpirenamed(self, mask, target, args):
+        """ Merges data that's attached to your previous name to your current.
+
+            %%helpirenamed
+        """
+        global RENAMED_REGEX_NAMES, RENAMED_REGEX_CURRENTNAME
+        # try:
+        r = requests.post("http://app.faforever.com/faf/userName.php", data={'name': mask.nick})
+        data = RENAMED_REGEX_NAMES.findall(r.text)
+        renames = []
+        for i in range(int(len(data) / 2)):
+            name = data[i * 2]
+            until = data[i * 2 + 1]
+            d = {
+                'name': name[4:len(name) - 5],
+                'until': until[4:len(until) - 5],
+            }
+            renames.append(d)
+        if len(renames) <= 1:
+            self.bot.privmsg(mask.nick, 'You have not changed your name, or FAF does not know about you.')
+            return
+        else:
+            currentName = renames[-1]['name']
+            previousName = renames[-2]['name']
+            r = requests.post("http://app.faforever.com/faf/userName.php", data={'name': previousName})
+            r2 = RENAMED_REGEX_CURRENTNAME.findall(r.text)
+            if len(r2) == 0:
+                self.bot.privmsg(mask.nick, 'Your previous nickname (' + previousName + ') seems to be taken.')
+                return
+            if (r2[0][9:len(r2)-5] == mask.nick) and (mask.nick == currentName):
+                self.bot.privmsg(mask.nick, 'Confirmed! Merging with data of ' + previousName + '!')
+                self.Chatpoints.merge(mask.nick, previousName)
+            else:
+                self.bot.privmsg(mask.nick, 'Something went wrong! :(')
 
     def getUnpingableName(self, name):
         return name[0:len(name)-1] + '.' + name[len(name)-1]

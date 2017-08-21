@@ -1,6 +1,7 @@
 import json
 import numpy as np
 from points import Points
+from events import Events
 import matplotlib.pyplot as plt
 
 def plotPointsByLevel(chatpointsObj, points):
@@ -17,11 +18,14 @@ def plotPointsByLevel(chatpointsObj, points):
     plt.legend(['Level'])
     plt.show()
 
-def plotListAsHist(lst, legendString, firstElements=5, lastElements=5, groupRest=True, sort=True):
+def getFormattedList(lst, firstElements=5, lastElements=5, groupRest=True, average=False, sort=True):
     if len(lst) == 0:
-        return
+        return []
     if sort:
         lst = sorted(lst, reverse=True, key=lambda v: v[1])
+    avg = []
+    if average:
+        avg = [('Average ('+str(len(lst))+')', sum(v[1] for v in lst)/len(lst))]
     lstTop = lst[:firstElements]
     lst = lst[firstElements:]
     bottomStart = max([(len(lst)-lastElements),0])
@@ -30,7 +34,13 @@ def plotListAsHist(lst, legendString, firstElements=5, lastElements=5, groupRest
     lst = lstTop
     if len(lstRest) > 0 and groupRest:
         lst.append(('Others (' + str(len(lstRest)) + ')', sum(v[1] for v in lstRest)))
+    lst += avg
     lst += lstBottom
+    return lst
+
+def plotListAsHist(lst, legendString):
+    if len(lst) == 0:
+        return
     x = np.arange(len(lst))
     plt.bar(x, height=[lst[i][1] for i in range(len(x))])
     plt.xticks(x, [lst[i][0] for i in range(len(x))])
@@ -38,15 +48,24 @@ def plotListAsHist(lst, legendString, firstElements=5, lastElements=5, groupRest
     plt.legend([legendString])
     plt.show()
 
-def plotChattipsForName(chatevents, name, firstElements=5, lastElements=5):
+def plotChattipsForName(chateventsObj, name, firstElements=5, lastElements=5):
     tippers = {}
-    for tip in chatevents.get('chattip', {}):
+    for tip in chateventsObj.getData('chattip'):
         if tip.get('taker', '') == name:
             tippers[tip['giver']] = tippers.get(tip['giver'], 0) + tip['points']
         if tip.get('giver', '') == name:
             tippers[tip['taker']] = tippers.get(tip['taker'], 0) - tip['points']
-    plotListAsHist([(k, tippers.get(k, 0)) for k in tippers.keys()], name + "'s sponsors",
-                   firstElements=firstElements, lastElements=lastElements)
+    plotListAsHist(getFormattedList([(k, tippers.get(k, 0)) for k in tippers.keys()], firstElements=firstElements, lastElements=lastElements), name + "'s sponsors")
+
+def getRouletteData(chateventsObj):
+    data = {}
+    for game in chateventsObj.getData('chatroulette'):
+        bets = game['bets']
+        gametotal = sum(bets.values())
+        for name in bets.keys():
+            data[name] = data.get(name, 0) - bets[name]
+        data[game['winner']] = data.get(game['winner'], 0) + gametotal
+    return [(key, data[key]) for key in data.keys()]
 
 def filterChannels(lst):
     filteredLst = []
@@ -56,12 +75,12 @@ def filterChannels(lst):
         filteredLst.append(element)
     return filteredLst
 
-def plotMost(chatpointsObj, legendString, by='p', ignoreChannels=True, firstElements=10, lastElements=0, reversed=True):
+def plotMost(chatpointsObj, legendString, by='p', ignoreChannels=True, firstElements=10, lastElements=0, reversed=True, average=False):
     ladder = chatpointsObj.getSortedBy(by, reversed=reversed)
     if ignoreChannels:
-        plotListAsHist(filterChannels(ladder), legendString + " (no channels)", firstElements=firstElements, lastElements=lastElements)
+        plotListAsHist(getFormattedList(filterChannels(ladder), firstElements=firstElements, lastElements=lastElements, average=average), legendString + " (no channels)")
         return
-    plotListAsHist(ladder, legendString, firstElements=firstElements, lastElements=lastElements)
+    plotListAsHist(getFormattedList(ladder, firstElements=firstElements, lastElements=lastElements, average=average), legendString)
 
 def plotMostPoints(chatpointsObj, ignoreChannels=True, firstElements=10):
     return plotMost(chatpointsObj, "Most points", by='p', ignoreChannels=ignoreChannels, firstElements=firstElements)
@@ -70,22 +89,33 @@ def plotGamblersTipreceivers(chatpointsObj, ignoreChannels=True, firstElements=1
     ladder = chatpointsObj.getSortedByMultiple(byPositive=['chatroulette', 'chattip'], byNegative=[], reversed=reversed)
     legendString = "Tips + roulette"
     if ignoreChannels:
-        plotListAsHist(filterChannels(ladder), legendString + " (no channels)", firstElements=10, lastElements=0, groupRest=False, sort=False)
+        plotListAsHist(getFormattedList(filterChannels(ladder), firstElements=firstElements, lastElements=0, groupRest=False, sort=False), legendString + " (no channels)")
         return
-    plotListAsHist(ladder, legendString, firstElements=firstElements, lastElements=0, groupRest=False, sort=False)
+    plotListAsHist(getFormattedList(ladder, firstElements=firstElements, lastElements=0, groupRest=False, sort=False), legendString)
 
+def plotPointsWithoutInfluence(chatpointsObj, ignoreChannels=True, firstElements=10, lastElements=0, reversed=False):
+    ladder = chatpointsObj.getSortedByMultiple(byPositive=['p'], byNegative=['chatroulette', 'chattip'], reversed=reversed)
+    legendString = "Points-(Tips+Roulette)"
+    if ignoreChannels:
+        plotListAsHist(getFormattedList(filterChannels(ladder), firstElements=firstElements, lastElements=lastElements, groupRest=False, sort=False, average=True), legendString + " (no channels)")
+        return
+    plotListAsHist(getFormattedList(ladder, firstElements=firstElements, lastElements=lastElements, groupRest=False, sort=False), legendString)
+
+
+#chatevents = Events("./backups/reset/1/1503159466/chatevents.json")
+#chatpoints = Points("./backups/reset/1/1503159466/chatlevel.json")
+chatevents = Events("./chatevents.json")
 chatpoints = Points("./chatlevel.json")
 chatpoints.transferBetweenKeysForAll('chatroulette-reserved', 'p', 99999999999, deleteOld=True)
 chatpoints.save()
-chatevents = {}
-with open("./chatevents.json", 'r+') as file:
-    chatevents = json.load(file)
 #plotChattipsForName(chatevents, 'jarikboygangela')
 #plotChattipsForName(chatevents, 'MAI')
 #plotChattipsForName(chatevents, '#reset', firstElements=5, lastElements=0)
 #plotMostPoints(chatpoints, firstElements=10, ignoreChannels=True)
-plotMost(chatpoints, "Chattips ", by='chattip', firstElements=6, lastElements=6, ignoreChannels=True)
-#plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True)
+#plotMost(chatpoints, "Chattips ", by='chattip', firstElements=6, lastElements=6, ignoreChannels=True)
+plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True, average=True)
+plotListAsHist(getFormattedList(getRouletteData(chatevents), firstElements=6, lastElements=6, groupRest=False, sort=True), "Chatroulette")
+#plotPointsWithoutInfluence(chatpoints, ignoreChannels=True, reversed=True)
 #plotPointsByLevel(chatpoints, range(25000))
 #plotGamblersTipreceivers(chatpoints, ignoreChannels=True, reversed=True)
 
