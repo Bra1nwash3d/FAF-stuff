@@ -39,7 +39,7 @@ CHATLVL_COMMANDLOCK = False
 CHATLVL_RESETNAME = '#reset'
 CHATLVL_NORESETNAME = '#noreset'
 CHATLVL_NORESETDISCOUNT = 0.5
-CHATLVL_RESETCOUNT = 10000
+CHATLVL_RESETCOUNT = 25000
 CHATLVL_EPOCH = 1
 CHATLVLWORDS = {}
 POINTS_PER_CHATLVL = 5
@@ -989,7 +989,7 @@ class Plugin(object):
             keyFrom, keyTo = 'reserved', 'p'
             if roulette:
                 keyFrom = 'chatroulette-reserved'
-            self.Chatpoints.transferBetweenKeysForAll(keyFrom, keyTo, 99999999999, deleteOld=True)
+            self.Chatpoints.transferBetweenKeysForAll(keyFrom, keyTo, 99999999999, deleteOld=False)
         self.bot.privmsg(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatgamesadmin eof')
@@ -1011,6 +1011,8 @@ class Plugin(object):
 
             %%chatroulette <points/all>
         """
+        if self.spam_protect('chatroulette', mask, target, args, specialSpamProtect='chatroulette', updateTimer=False):
+            return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chatroulette')
@@ -1041,10 +1043,6 @@ class Plugin(object):
         seconds = 20
         addedSeconds = min([10, points])  # to roulette timer
         if (not self.chatroulettethread):
-            if self.spam_protect('chatroulette', mask, target, args, specialSpamProtect='chatroulette'):
-                CHATLVL_COMMANDLOCK.release()
-                self.debugPrint('commandlock release chatroulette 4')
-                return
             self.chatroulettethread = timedInputAccumulatorThread(callbackf=self.on_chatroulette_finished_noasync, args={"channel":target}, seconds=seconds, maxduration=60)
             self.chatroulettethread.start()
             self.bot.privmsg(target, "{name} is starting a chat roulette! Quickly, bet your points! ({seconds} seconds, betting is dangerous and can be addicting)".format(**{
@@ -1056,10 +1054,8 @@ class Plugin(object):
                     "name": mask.nick,
                     "seconds": str(addedSeconds),
                 }))
-        if not self.chatroulettethread.addInput((mask.nick, points), addSeconds=addedSeconds):
-            # return points in case there is some multithreading problem going on
-            self.Chatpoints.transferBetweenKeysById(self.__maskToFafId(mask), 'chatroulette-reserved', 'p', 99999999999999, partial=True)
-        elif allin:
+        self.chatroulettethread.addInput((mask.nick, points), addSeconds=addedSeconds)
+        if allin:
             self.bot.action(target, "{name} is going all in with {points} points!".format(**{
                     "name": mask.nick,
                     "points": str(points),
@@ -1109,9 +1105,9 @@ class Plugin(object):
                 }))
         # juggle points, remove MAI from the betting list
         del result[self.bot.config['nick']]
-        self.Chatpoints.transferByIds(winner, result, receiverKey='p', giverKey='chatroulette-reserved', allowNegative=True, partial=True)
+        self.Chatpoints.transferByIds(winner, result, receiverKey='p', giverKey='chatroulette-reserved', allowNegative=False, partial=False)
         self.Chatpoints.transferByIds(winner, result, receiverKey='chatroulette', giverKey='chatroulette', allowNegative=True, partial=False)
-        self.Chatpoints.transferBetweenKeysForAll('chatroulette-reserved', 'p', 99999999999, deleteOld=True) # recover original points which might lost to hickup etc
+        #self.Chatpoints.transferBetweenKeysForAll('chatroulette-reserved', 'p', 99999999999, deleteOld=False) # recover original points which might lost to hickup etc
         # cooldown, data
         if self.chatroulettethread:
             self.chatroulettethread.stop()
@@ -1230,7 +1226,7 @@ class Plugin(object):
     def getUnpingableName(self, name):
         return name[0:len(name)-1] + '.' + name[len(name)-1]
 
-    def spam_protect(self, cmd, mask, target, args, specialSpamProtect=None, ircSpamProtect=True, setToNow=False):
+    def spam_protect(self, cmd, mask, target, args, updateTimer=True, specialSpamProtect=None, ircSpamProtect=True, setToNow=False):
         if setToNow:
             if not cmd in self.timers:
                 self.timers[cmd] = {}
@@ -1259,7 +1255,8 @@ class Plugin(object):
             if ircSpamProtect:
                 self.bot.privmsg(nick, "Wait another " + str(int(remTime)+1) + " seconds before trying again.")
             return True
-        self.timers[cmd][target] = time.time()
+        if updateTimer:
+            self.timers[cmd][target] = time.time()
         return False
 
     def pickWeightedRandom(self, dct):
