@@ -123,7 +123,7 @@ chatpoints.save()
 #plotChattipsForName(chatevents, 'MAI')
 #plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True, average=True)
 #plotGamblersTipreceivers(chatpoints, ignoreChannels=True, reversed=True)
-plotListAsHist(getFormattedList(getPokerData(chatevents), firstElements=6, lastElements=6, groupRest=False, sort=True), "Chatpoker")
+plotListAsHist(getFormattedList(getPokerData(chatevents), firstElements=6, lastElements=6, groupRest=True, sort=True), "Chatpoker")
 
 if False:
     plotMostPoints(chatpoints, firstElements=10, ignoreChannels=True)

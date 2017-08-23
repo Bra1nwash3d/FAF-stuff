@@ -5,6 +5,8 @@ from timed_input_accumulator import timedInputAccumulatorThread
 import time
 
 TIMEOUT_SECONDS = 30
+GAMECOST = 2.5  # percent of wins
+GAMECOSTRECEIVER = '#poker'
 
 cardToStringValue = {
     11 : 'J',
@@ -201,6 +203,7 @@ class Poker:
         winners = self.playerOrder
         for name in self.players.keys():
             stake += self.players[name]['totalpoints']
+        gamecosts = int(stake * GAMECOST / 100)
         if len(self.playerOrder) == 1:
             # just one remaining, don't show cards
             self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points!".format(**{
@@ -240,6 +243,7 @@ class Poker:
             else:
                 # multiple winner :O
                 stake = int(stake / len(winners))
+                gamecosts = int(gamecosts / len(winners))+1
                 stringFormat['name'] = ", ".join(winners)
                 stringFormat['stake'] = str(stake)
                 self.__outputToChat(self.channel, "Poker game over! {name} win {stake} points each with {type}!".format(**stringFormat))
@@ -254,6 +258,12 @@ class Poker:
             for winner in winners:
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey='p', giverKey='chatpoker-reserved', allowNegative=False, partial=False)
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
+            # making up for game costs
+            if name in winners:
+                print(name, 'winning, so tipping', gamecosts, 'to', GAMECOSTRECEIVER)
+                dct = {name : gamecosts}
+                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='p', giverKey='p', allowNegative=False, partial=False)
+                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
             self.chatpointsObj.transferBetweenKeysById(name, 'chatpoker-reserved', 'p', 999999999999, partial=True)
         self.chateventsObj.addEvent('chatpoker', {
             'winners' : winnersDict,
@@ -330,10 +340,12 @@ class Poker:
         if self.continuousCalls == len(self.playerOrder):
             self.beginNewRound()
         nextPlayer = self.playerOrder[self.nextPlayer]
+        missingPoints = self.currentStake - self.players[nextPlayer].get('roundpoints', 0)
         if self.gameIsRunning:
-            self.__outputToChat(nextPlayer, "Your turn! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
+            self.__outputToChat(nextPlayer, "Your turn! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
                 'seconds' : TIMEOUT_SECONDS,
                 'points' : str(self.maxpoints - self.players[nextPlayer].get('totalpoints',0)),
+                'missing' : str(missingPoints)
             }))
         PokerTimer(self.timeoutFold, {
             'name' : nextPlayer,
@@ -408,7 +420,8 @@ class Poker:
     def fold(self, name):
         self.lock.acquire()
         r = self.__fold(name)
-        self.__outputToChat(name, "Fold confirmed")
+        if r:
+            self.__outputToChat(name, "Fold confirmed")
         self.lock.release()
         return r
 
@@ -434,7 +447,7 @@ class Poker:
         worked, paidPoints = self.__updatePlayer(name, missingPoints, wipeRoundPoints=False)
         if paidPoints > 0:
             self.continuousCalls = 1
-            self.currentStake += points
+            self.currentStake += paidPoints
         self.__informNext()
         self.__outputToChat(name, "Raise confirmed")
         self.lock.release()

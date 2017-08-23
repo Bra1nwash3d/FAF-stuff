@@ -685,14 +685,14 @@ class Plugin(object):
         if not name:
             name = mask.nick
         data = self.Chatpoints.getPointDataById(name)
-        tipstring, roulettestring = "", ""
+        tipstring, roulettestring, pokerstring = "", "", ""
         if data.get('chatroulette', False):
             roulettestring = ", " + str(format(data.get('chatroulette'), '.1f')) + " from chat roulette"
         if data.get('chatpoker', False):
-            tipstring = ", " + str(format(data.get('chatpoker'), '.1f')) + " from chat poker"
+            pokerstring = ", " + str(format(data.get('chatpoker'), '.1f')) + " from chat poker"
         if data.get('chattip', False):
             tipstring = ", " + str(format(data.get('chattip'), '.1f')) + " from chat tips"
-        self.bot.privmsg(location, "{object}'s level: {level}, points: {points} ({toUp} to next level, {total} in total){roulettestring}{tipstring}".format(**{
+        self.bot.privmsg(location, "{object}'s level: {level}, points: {points} ({toUp} to next level, {total} in total){roulettestring}{tipstring}{pokerstring}".format(**{
                 "object": name,
                 "level": str(data.get('level', 1)),
                 "points": format(data.get('points', 1), '.1f'),
@@ -700,6 +700,7 @@ class Plugin(object):
                 "total": format(data.get('p', 1), '.1f'),
                 "roulettestring": roulettestring,
                 "tipstring": tipstring,
+                "pokerstring": pokerstring,
             }))
 
     @command()
