@@ -22,6 +22,7 @@ from periodic_callback import periodicCallback
 from markov import Markov
 from points import Points
 from events import Events
+from poker import Poker
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
@@ -207,7 +208,7 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatroulette']:
+        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -223,6 +224,7 @@ class Plugin(object):
         self.ChangelogMarkov = Markov(self, self.bot.config.get('markovwordsstorage_changelog', './dbmarkovChangelogs.json'))
         self.Chatpoints = Points(self.bot.config.get('chatlevelstorage', './chatlevel.json'))
         self.Chatevents = Events(self.bot.config.get('chateventstorage', './chatevents.json'))
+        self.Chatpoker = False
 
         try:
             self.chatroulettethread.stop()
@@ -996,6 +998,53 @@ class Plugin(object):
 
     @command
     @asyncio.coroutine
+    def cpoker(self, mask, target, args):
+        """ Play the chat point poker! Bet points, 20s after the initial roll, a winner is chosen.
+            Probability scales with points bet. The winner gets all points.
+
+            %%cpoker signup
+            %%cpoker fold
+            %%cpoker call
+            %%cpoker raise <points>
+            %%cpoker start
+        """
+        if self.spam_protect('chatgames', mask, target, args, specialSpamProtect='chatgames', updateTimer=False):
+            return
+        global CHATLVL_COMMANDLOCK
+        CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatpoker')
+        signup, fold, call, raise_, points, start = args.get('signup'), args.get('fold'), args.get('call'), args.get('raise'), args.get('<points>'), args.get('start')
+        if not self.Chatpoker:
+            self.Chatpoker = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, 50)
+        if start:
+            self.Chatpoker.beginFirstRound(target)
+        if call:
+            self.Chatpoker.call(target, mask.nick)
+        if fold:
+            self.Chatpoker.fold(target, mask.nick)
+        if signup:
+            self.Chatpoker.signup(target, mask.nick)
+        if raise_:
+            try:
+                points = abs(int(points))
+            except:
+                CHATLVL_COMMANDLOCK.release()
+                self.debugPrint('commandlock release chatpoker 1')
+                return
+            self.Chatpoker.raise_(target, mask.nick, points)
+        CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatpoker eof')
+
+    def on_cpoker_done(self):
+        self.Chatpoker = False
+        self.spam_protect('chatgames', "", "", {}, specialSpamProtect='chatgames', updateTimer=True)
+        self.save(args={
+            'path' : 'poker/',
+            'keep' : 5,
+        })
+
+    @command
+    @asyncio.coroutine
     def cbet(self, mask, target, args):
         """ Shortcut to the chatroulette command
 
@@ -1011,7 +1060,7 @@ class Plugin(object):
 
             %%chatroulette <points/all>
         """
-        if self.spam_protect('chatroulette', mask, target, args, specialSpamProtect='chatroulette', updateTimer=False):
+        if self.spam_protect('chatgames', mask, target, args, specialSpamProtect='chatgames', updateTimer=False):
             return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
@@ -1122,7 +1171,7 @@ class Plugin(object):
         })
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release roulettefinished eof')
-        self.spam_protect('chatroulette', self.bot.config['nick'], args.get('channel'), args, specialSpamProtect='chatroulette', setToNow=True)
+        self.spam_protect('chatgames', self.bot.config['nick'], args.get('channel'), args, specialSpamProtect='chatgames', setToNow=True)
 
     if False:
         @command(public=False, show_in_help_list=False)
