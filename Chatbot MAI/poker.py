@@ -287,6 +287,8 @@ class Poker:
 
     def beginFirstRound(self, name):
         if (self.knownCards < 3) and (name in self.playerOrder):
+            order = self.playerOrder + []
+            self.playerOrder = random.sample(order, len(order))
             self.beginNewRound()
             self.nextPlayer = -1
             self.__informNext(playerDropped=False)
@@ -406,6 +408,7 @@ class Poker:
     def fold(self, name):
         self.lock.acquire()
         r = self.__fold(name)
+        self.__outputToChat(name, "Fold confirmed")
         self.lock.release()
         return r
 

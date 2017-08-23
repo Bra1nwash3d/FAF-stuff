@@ -1046,7 +1046,7 @@ class Plugin(object):
 
     def on_cpoker_done(self):
         self.Chatpoker = False
-        self.spam_protect('chatgames', "", "", {}, specialSpamProtect='chatgames', updateTimer=True)
+        self.spam_protect('chatgames', self.bot.config['nick'], MAIN_CHANNEL, {}, specialSpamProtect='chatgames', setToNow=True)
         self.save(args={
             'path' : 'poker/',
             'keep' : 5,
@@ -1278,7 +1278,7 @@ class Plugin(object):
             if len(r2) == 0:
                 self.bot.privmsg(mask.nick, 'Your previous nickname (' + previousName + ') seems to be taken.')
                 return
-            if (r2[0][9:len(r2)-5] == mask.nick) and (mask.nick == currentName):
+            if (str(r2[0][9:len(r2[0])-4]) == str(mask.nick)) and (str(mask.nick) == str(currentName)):
                 self.bot.privmsg(mask.nick, 'Confirmed! Merging with data of ' + previousName + '!')
                 self.Chatpoints.merge(mask.nick, previousName)
             else:

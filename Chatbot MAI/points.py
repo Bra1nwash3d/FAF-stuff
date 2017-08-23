@@ -222,7 +222,6 @@ class Points():
         remainingName = remaining['n']
         removed = self.addNewIfNotExisting(mergeRemovedId)
         for key in removed.keys():
-            print(key)
             remaining[key] = remaining.get(key, 0) + removed[key]
         remaining['n'] = remainingName
         del self.elements[mergeRemovedId]
