@@ -75,6 +75,7 @@ class Points():
             'points' : remaining,
             'tonext' : toLevelUp - remaining,
             'chatroulette' : element.get('chatroulette', False),
+            'chatpoker' : element.get('chatpoker', False),
             'chattip' : element.get('chattip', False),
         }
 

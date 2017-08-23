@@ -688,6 +688,8 @@ class Plugin(object):
         tipstring, roulettestring = "", ""
         if data.get('chatroulette', False):
             roulettestring = ", " + str(format(data.get('chatroulette'), '.1f')) + " from chat roulette"
+        if data.get('chatpoker', False):
+            tipstring = ", " + str(format(data.get('chatpoker'), '.1f')) + " from chat poker"
         if data.get('chattip', False):
             tipstring = ", " + str(format(data.get('chattip'), '.1f')) + " from chat tips"
         self.bot.privmsg(location, "{object}'s level: {level}, points: {points} ({toUp} to next level, {total} in total){roulettestring}{tipstring}".format(**{
@@ -999,10 +1001,10 @@ class Plugin(object):
     @command
     @asyncio.coroutine
     def cpoker(self, mask, target, args):
-        """ Play the chat point poker! Bet points, 20s after the initial roll, a winner is chosen.
-            Probability scales with points bet. The winner gets all points.
+        """ Play the chat point poker! Sign up, compete with others, and be quicker than the timeout!
 
             %%cpoker signup
+            %%cpoker signup <points>
             %%cpoker fold
             %%cpoker call
             %%cpoker raise <points>
@@ -1014,24 +1016,27 @@ class Plugin(object):
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chatpoker')
         signup, fold, call, raise_, points, start = args.get('signup'), args.get('fold'), args.get('call'), args.get('raise'), args.get('<points>'), args.get('start')
-        if not self.Chatpoker:
-            self.Chatpoker = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, 50)
-        if start:
-            self.Chatpoker.beginFirstRound(target)
-        if call:
-            self.Chatpoker.call(target, mask.nick)
-        if fold:
-            self.Chatpoker.fold(target, mask.nick)
-        if signup:
-            self.Chatpoker.signup(target, mask.nick)
-        if raise_:
+        if points:
             try:
                 points = abs(int(points))
             except:
                 CHATLVL_COMMANDLOCK.release()
                 self.debugPrint('commandlock release chatpoker 1')
                 return
-            self.Chatpoker.raise_(target, mask.nick, points)
+        else:
+            points = 50
+        if not self.Chatpoker:
+            self.Chatpoker = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, points)
+        if start:
+            self.Chatpoker.beginFirstRound(mask.nick)
+        if call:
+            self.Chatpoker.call(mask.nick)
+        if fold:
+            self.Chatpoker.fold(mask.nick)
+        if signup:
+            self.Chatpoker.signup(mask.nick)
+        if raise_:
+            self.Chatpoker.raise_(mask.nick, points)
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatpoker eof')
 
