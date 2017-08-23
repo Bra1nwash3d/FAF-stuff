@@ -13,10 +13,10 @@ cardToStringValue = {
     14 : 'A',
 }
 cardToStringType = {
-    0 : 'Heart',
-    1 : 'Diamond',
-    2 : 'Clubs',
-    3 : 'Spade',
+    0 : '♡', # 'Heart',
+    1 : '♢', # 'Diamond',
+    2 : '♧', # 'Clubs',
+    3 : '♤', # 'Spade',
 }
 cardEvalToStringType = {
     1 : 'the highest card',
@@ -53,7 +53,7 @@ class Poker:
         self.bot = bot
         self.maxpoints = maxpoints
         self.callbackf = callbackf
-        self.roundcosts = [0, 0, 0, 2, 3, 5]  # depending on number of known cards
+        self.roundcosts = [0, 0, 0, int(maxpoints*1/20), int(maxpoints*1/20), int(maxpoints*1/10)]  # depending on number of known cards
         self.channel = channel
         self.reset()
 
@@ -89,7 +89,7 @@ class Poker:
         if v >= 11:
             v = cardToStringValue[v]
         t = cardToStringType[t]
-        return t+'-'+str(v)
+        return str(v)+t
 
     def __outputToChat(self, channel, msg):
         self.bot.privmsg(channel, msg)
@@ -276,12 +276,14 @@ class Poker:
         self.knownCards += 1
         self.currentStake = 0
         self.continuousCalls = 0
-        self.__outputToChat(self.channel, "Beginning new round! Known cards: [{cards}], Order is: [{order}]".format(**{
-            "cards" : self.__readableCardList(self.midCards[:self.knownCards]),
-            "order" : ", ".join(self.playerOrder),
-        }))
         for name in self.playerOrder:
             self.__updatePlayer(name, self.roundcosts[self.knownCards], wipeRoundPoints=True)
+        pot = sum([v.get('totalpoints', 0) for v in self.players.values()])
+        self.__outputToChat(self.channel, "Beginning new round! {pot} points in the pot! Known cards: [{cards}], Order is: [{order}]".format(**{
+            "cards" : self.__readableCardList(self.midCards[:self.knownCards]),
+            "order" : ", ".join(self.playerOrder),
+            "pot" : str(pot),
+        }))
 
     def beginFirstRound(self, name):
         if (self.knownCards < 3) and (name in self.playerOrder):
@@ -327,7 +329,10 @@ class Poker:
             self.beginNewRound()
         nextPlayer = self.playerOrder[self.nextPlayer]
         if self.gameIsRunning:
-            self.__outputToChat(nextPlayer, "Your turn! Timeout in {} seconds!".format(TIMEOUT_SECONDS))
+            self.__outputToChat(nextPlayer, "Your turn! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
+                'seconds' : TIMEOUT_SECONDS,
+                'points' : str(self.maxpoints - self.players[nextPlayer].get('totalpoints',0)),
+            }))
         PokerTimer(self.timeoutFold, {
             'name' : nextPlayer,
             'knowncards' : self.knownCards,
@@ -392,7 +397,9 @@ class Poker:
         if args.get('playersActionTaken', -1) < self.playersActionTaken:
             self.lock.release()
             return
-        self.__outputToChat(self.channel, "{} took too long and was automatically folded!".format(args.get('name')))
+        if not (args.get('name') in self.playerOrder):
+            self.lock.release()
+            return
         self.__fold(args.get('name'))
         self.lock.release()
 
@@ -411,6 +418,7 @@ class Poker:
         missingPoints = self.currentStake - self.players[name]['roundpoints']
         self.__updatePlayer(name, missingPoints, wipeRoundPoints=False)
         self.__informNext()
+        self.__outputToChat(name, "Call confirmed")
         self.lock.release()
         return True
 
@@ -425,6 +433,7 @@ class Poker:
             self.continuousCalls = 1
             self.currentStake += points
         self.__informNext()
+        self.__outputToChat(name, "Raise confirmed")
         self.lock.release()
         return True
 

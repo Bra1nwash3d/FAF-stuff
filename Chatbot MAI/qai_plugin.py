@@ -984,15 +984,18 @@ class Plugin(object):
         """ To restore reserved points
 
             %%chatgamesadmin restore roulette
+            %%chatgamesadmin restore poker
         """
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chatgamesadmin')
-        restore, roulette = args.get('restore'), args.get('roulette')
+        restore, roulette, poker = args.get('restore'), args.get('roulette'), args.get('poker')
         if restore:
             keyFrom, keyTo = 'reserved', 'p'
             if roulette:
                 keyFrom = 'chatroulette-reserved'
+            if poker:
+                keyFrom = 'chatpoker-reserved'
             self.Chatpoints.transferBetweenKeysForAll(keyFrom, keyTo, 99999999999, deleteOld=False)
         self.bot.privmsg(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
@@ -1001,9 +1004,7 @@ class Plugin(object):
     @command
     @asyncio.coroutine
     def cpoker(self, mask, target, args):
-        """ Play the chat point poker! Sign up, compete with others, and be quicker than the timeout!
-
-            %%cpoker signup
+        """ %%cpoker signup
             %%cpoker signup <points>
             %%cpoker fold
             %%cpoker call
@@ -1014,6 +1015,9 @@ class Plugin(object):
             return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        if self.chatroulettethread:
+            CHATLVL_COMMANDLOCK.release()
+            return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatpoker')
         signup, fold, call, raise_, points, start = args.get('signup'), args.get('fold'), args.get('call'), args.get('raise'), args.get('<points>'), args.get('start')
         if points:
@@ -1069,6 +1073,9 @@ class Plugin(object):
             return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
+        if self.Chatpoker:
+            CHATLVL_COMMANDLOCK.release()
+            return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatroulette')
         points, use = args.get('<points/all>'), False
         allin = points in ["all", "allin"]

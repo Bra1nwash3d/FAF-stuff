@@ -67,6 +67,15 @@ def getRouletteData(chateventsObj):
         data[game['winner']] = data.get(game['winner'], 0) + gametotal
     return [(key, data[key]) for key in data.keys()]
 
+def getPokerData(chateventsObj):
+    data = {}
+    for game in chateventsObj.getData('chatpoker'):
+        for player in game.get('losers').keys():
+            data[player] = data.get(player, 0) - game['losers'][player]
+        for player in game.get('winners').keys():
+            data[player] = data.get(player, 0) - game['winners'][player] + game.get('stakepw', 0)
+    return [(key, data[key]) for key in data.keys()]
+
 def filterChannels(lst):
     filteredLst = []
     for element in lst:
@@ -102,20 +111,21 @@ def plotPointsWithoutInfluence(chatpointsObj, ignoreChannels=True, firstElements
     plotListAsHist(getFormattedList(ladder, firstElements=firstElements, lastElements=lastElements, groupRest=False, sort=False), legendString)
 
 
-#chatevents = Events("./backups/reset/1/1503159466/chatevents.json")
-#chatpoints = Points("./backups/reset/1/1503159466/chatlevel.json")
-chatevents = Events("./backups/reset/2/1503403069/chatevents.json")
-chatpoints = Points("./backups/reset/2/1503403069/chatlevel.json")
+path = '/backups/reset/1/1503159466'
+path = '/backups/reset/2/1503403069'
+path = ""
+chatevents = Events("." + path + "/chatevents.json")
+chatpoints = Points("." + path + "/chatlevel.json")
 #chatevents = Events("./chatevents.json")
 #chatpoints = Points("./chatlevel.json")
-chatpoints.transferBetweenKeysForAll('chatroulette-reserved', 'p', 99999999999, deleteOld=True)
 chatpoints.save()
 #plotChattipsForName(chatevents, 'jarikboygangela')
 #plotChattipsForName(chatevents, 'MAI')
 #plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True, average=True)
 #plotGamblersTipreceivers(chatpoints, ignoreChannels=True, reversed=True)
+plotListAsHist(getFormattedList(getPokerData(chatevents), firstElements=6, lastElements=6, groupRest=False, sort=True), "Chatpoker")
 
-if True:
+if False:
     plotMostPoints(chatpoints, firstElements=10, ignoreChannels=True)
     plotPointsWithoutInfluence(chatpoints, ignoreChannels=True, reversed=True)
     plotChattipsForName(chatevents, '#reset', firstElements=5, lastElements=0)
