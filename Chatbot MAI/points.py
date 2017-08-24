@@ -115,7 +115,9 @@ class Points():
         self.update_lock.acquire()
         if not self.elements.get(id, False):
             self.addNew(id)
-        self.addNewIfNotExisting(id, data=data)
+        self.addNewIfNotExisting(id, data={})
+        for key in data.keys():
+            self.elements[id][key] = data[key]
         self.elements[id]['t'] = time.time()
         for key in delta.keys():
             new_value = self.elements[id].get(key, 0) + delta[key]
@@ -180,7 +182,7 @@ class Points():
         for giverId in giverIdDict.keys():
             if self.updateById(giverId, delta={giverKey : -giverIdDict[giverId]}, allowNegative=allowNegative, partial=partial):
                 toTransfer += giverIdDict[giverId]
-        self.updateById(receiverId, delta={receiverKey : toTransfer})
+        self.updateById(receiverId, delta={receiverKey : toTransfer}, allowNegative=True)
 
     def transferPointsByIds(self, receiverId, giverIdDict):
         return self.transferByIds(receiverId, giverIdDict)

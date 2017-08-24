@@ -4,6 +4,7 @@ import asyncio
 from timed_input_accumulator import timedInputAccumulatorThread
 import time
 
+useDebugPrint = True
 TIMEOUT_SECONDS = 30
 GAMECOST = 2.5  # percent of wins
 GAMECOSTRECEIVER = '#poker'
@@ -59,6 +60,10 @@ class Poker:
         self.channel = channel
         self.reset()
 
+    def debugPrint(self, text):
+        if useDebugPrint:
+            print(text.encode('ascii', errors='backslashreplace'))
+
     def reset(self):
         self.gameIsRunning = True
         self.players = {}
@@ -94,6 +99,7 @@ class Poker:
         return str(v)+t
 
     def __outputToChat(self, channel, msg):
+        #self.debugPrint(channel + ': ' + msg)
         self.bot.privmsg(channel, msg)
 
     def __cardsIsFlush(self, playercards):
@@ -151,6 +157,7 @@ class Poker:
         return card
 
     def __evaluateCardsValue(self, playercards):
+        # TODO evaluate more than one remaining
         # returns [value of match, value1 of match card, value2 of match card, value of highest card]
         cards = playercards + self.midCards
         isFlush, flushcards, remaining = self.__cardsIsFlush(cards)
@@ -199,11 +206,12 @@ class Poker:
     def __onGameEnd(self):
         self.gameIsRunning = False
         # score
+        self.debugPrint("\nPOKER GAME OVER")
         winnername, bestcardsvalue, stake = self.playerOrder[0], 0, 0
         winners = self.playerOrder
         for name in self.players.keys():
             stake += self.players[name]['totalpoints']
-        gamecosts = int(stake * GAMECOST / 100)
+        gamecosts = int(stake * GAMECOST / 100 + 0.5)
         if len(self.playerOrder) == 1:
             # just one remaining, don't show cards
             self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points!".format(**{
@@ -215,7 +223,7 @@ class Poker:
             for name in self.playerOrder:
                 self.players[name]['cardvalues'] = self.__evaluateCardsValue(self.players[name]['cards'])
             highestUsers = self.playerOrder+[]
-            for i in range(4):
+            for i in range(len(self.players[self.playerOrder[0]]['cardvalues'])):
                 if len(highestUsers) <= 1:
                     break
                 nextHighestUsers = []
@@ -239,7 +247,7 @@ class Poker:
             }
             if len(winners) == 1:
                 # single winner
-                self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points with {type}! ({cards} --- {midcards})!".format(**stringFormat))
+                self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points with {type}! [{cards} | {midcards}]!".format(**stringFormat))
             else:
                 # multiple winner :O
                 stake = int(stake / len(winners))
@@ -251,26 +259,31 @@ class Poker:
         losersDict = {}
         winnersDict = {}
         for name in self.players.keys():
+            self.debugPrint("Handling player " + name + ", count of winners: " + str(len(winners)))
             pointsLost = self.players[name]['totalpoints']
-            if not (name in winners): losersDict[name] = pointsLost
-            else: winnersDict[name] = pointsLost
             dct = {name : pointsLost/len(winners)}
             for winner in winners:
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey='p', giverKey='chatpoker-reserved', allowNegative=False, partial=False)
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
             # making up for game costs
             if name in winners:
-                print(name, 'winning, so tipping', gamecosts, 'to', GAMECOSTRECEIVER)
+                self.debugPrint(name + ' winning, so tipping ' + str(gamecosts) + ' to ' + GAMECOSTRECEIVER)
                 dct = {name : gamecosts}
                 self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='p', giverKey='p', allowNegative=False, partial=False)
                 self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
+                winnersDict[name] = pointsLost
+            else:
+                losersDict[name] = pointsLost
             self.chatpointsObj.transferBetweenKeysById(name, 'chatpoker-reserved', 'p', 999999999999, partial=True)
         self.chateventsObj.addEvent('chatpoker', {
             'winners' : winnersDict,
             'stakepw' : stake,
             'losers' : losersDict,
+            'gamecostspw' : gamecosts,
         })
-        self.callbackf()
+        self.callbackf({
+            'channel' : self.channel,
+        })
 
     def beginNewRound(self):
         if self.knownCards >= len(self.midCards):
@@ -326,6 +339,7 @@ class Poker:
         self.players[name]['roundpoints'] += points
         if wipeRoundPoints:
             self.players[name]['roundpoints'] = 0
+        self.debugPrint('+ updating player ' + name + ': ' + str(self.players[name]))
         return True, points
 
     def __informNext(self, playerDropped=False):
@@ -340,7 +354,7 @@ class Poker:
         if self.continuousCalls == len(self.playerOrder):
             self.beginNewRound()
         nextPlayer = self.playerOrder[self.nextPlayer]
-        missingPoints = self.currentStake - self.players[nextPlayer].get('roundpoints', 0)
+        missingPoints = self.__getNecessaryCallPoints(nextPlayer)
         if self.gameIsRunning:
             self.__outputToChat(nextPlayer, "Your turn! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
                 'seconds' : TIMEOUT_SECONDS,
@@ -352,6 +366,9 @@ class Poker:
             'knowncards' : self.knownCards,
             'playersActionTaken' : self.playersActionTaken,
         }, TIMEOUT_SECONDS).start()
+
+    def __getNecessaryCallPoints(self, name):
+        return self.currentStake - self.players[name]['roundpoints']
 
     def __reservePlayerPoints(self, name):
         worked, _ = self.chatpointsObj.transferBetweenKeysById(name, 'p', 'chatpoker-reserved', self.maxpoints, partial=False)
@@ -414,6 +431,7 @@ class Poker:
         if not (args.get('name') in self.playerOrder):
             self.lock.release()
             return
+        self.__outputToChat(self.channel, "{} folding by timeout!".format(args.get('name')))
         self.__fold(args.get('name'))
         self.lock.release()
 
@@ -431,7 +449,7 @@ class Poker:
             self.lock.release()
             return False
         self.continuousCalls += 1
-        missingPoints = self.currentStake - self.players[name]['roundpoints']
+        missingPoints = self.__getNecessaryCallPoints(name)
         self.__updatePlayer(name, missingPoints, wipeRoundPoints=False)
         self.__informNext()
         self.__outputToChat(name, "Call confirmed")
@@ -443,13 +461,21 @@ class Poker:
         if not self.__isPlayersTurn(name):
             self.lock.release()
             return False
-        missingPoints = (self.currentStake - self.players[name]['roundpoints']) + points
+        missingCallPoints = self.__getNecessaryCallPoints(name)
+        missingPoints = missingCallPoints + points
         worked, paidPoints = self.__updatePlayer(name, missingPoints, wipeRoundPoints=False)
-        if paidPoints > 0:
+        raisedPoints = (paidPoints - missingCallPoints)
+        if worked and (raisedPoints > 0):
             self.continuousCalls = 1
-            self.currentStake += paidPoints
+            self.currentStake += raisedPoints
+            self.debugPrint(">>> Raised by " + str(raisedPoints))
+            self.__outputToChat(self.channel, name + " raised by " + str(raisedPoints))
+            self.__outputToChat(name, "Raise confirmed")
+        else:
+            self.continuousCalls += 1
+            self.__outputToChat(self.channel, "Further raising not possible! Called instead.")
+            self.__outputToChat(name, "Raising not possible, called instead")
         self.__informNext()
-        self.__outputToChat(name, "Raise confirmed")
         self.lock.release()
         return True
 

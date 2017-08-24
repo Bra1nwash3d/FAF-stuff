@@ -123,11 +123,11 @@ chatpoints.save()
 #plotChattipsForName(chatevents, 'MAI')
 #plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True, average=True)
 #plotGamblersTipreceivers(chatpoints, ignoreChannels=True, reversed=True)
-plotListAsHist(getFormattedList(getPokerData(chatevents), firstElements=6, lastElements=6, groupRest=True, sort=True), "Chatpoker")
 
-if False:
+if True:
     plotMostPoints(chatpoints, firstElements=10, ignoreChannels=True)
     plotPointsWithoutInfluence(chatpoints, ignoreChannels=True, reversed=True)
-    plotChattipsForName(chatevents, '#reset', firstElements=5, lastElements=0)
-    plotMost(chatpoints, "Chattips ", by='chattip', firstElements=6, lastElements=6, ignoreChannels=True)
-    plotListAsHist(getFormattedList(getRouletteData(chatevents), firstElements=6, lastElements=6, groupRest=False, sort=True), "Chatroulette")
+    plotChattipsForName(chatevents, '#reset', firstElements=6, lastElements=0)
+    plotMost(chatpoints, "Chattips ", by='chattip', firstElements=5, lastElements=5, ignoreChannels=False)
+    plotMost(chatpoints, "Chatpoker ", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=True)
+    plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=5, lastElements=5, ignoreChannels=True)

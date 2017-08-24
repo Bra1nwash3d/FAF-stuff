@@ -1043,11 +1043,10 @@ class Plugin(object):
         if raise_:
             self.Chatpoker.raise_(mask.nick, points)
         CHATLVL_COMMANDLOCK.release()
-        self.debugPrint('commandlock release chatpoker eof')
 
-    def on_cpoker_done(self):
+    def on_cpoker_done(self, args={}):
         self.Chatpoker = False
-        self.spam_protect('chatgames', self.bot.config['nick'], MAIN_CHANNEL, {}, specialSpamProtect='chatgames', setToNow=True)
+        self.spam_protect('chatgames', self.bot.config['nick'], args.get('channel', MAIN_CHANNEL), {}, specialSpamProtect='chatgames', setToNow=True)
         self.save(args={
             'path' : 'poker/',
             'keep' : 5,
