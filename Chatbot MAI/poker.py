@@ -4,8 +4,8 @@ import asyncio
 from timed_input_accumulator import timedInputAccumulatorThread
 import time
 
-useDebugPrint = True
-TIMEOUT_SECONDS = 30
+useDebugPrint = False
+TIMEOUT_SECONDS = 30  # increased by entryrequirement/10, max 2*
 GAMECOST = 2.5  # percent of wins
 GAMECOSTRECEIVER = '#poker'
 
@@ -33,6 +33,45 @@ cardEvalToStringType = {
     9 : 'a straight flush',
     10 : 'a Royal Straight Flush',
 }
+cardCommentsOnMatchvalue = {
+    # highest card
+    1 : ["Sometimes you just find 5$ on the street, this is the time",
+         "Neither has anything, but one must win."],
+    # pair
+    2 : ["Everyone on FAF is single, not you this time!",
+         "Sometimes you don't need that much luck.",
+         "Just enough work to win."],
+    # two pairs
+    3 : ["Good job. You might not be as lucky next time.",
+         "Crushed.",
+         "One for every limb you got. Unless you don't."],
+    # three of a kind
+    4 : ["At least you have threesomes on FAF.",
+         "OOOOOHHH BABY A TRIPPLE",
+         "A good result, isn't it."],
+    # straight
+    5 : ["You might not be, but you got a straight.",
+         "If only your life lined up just as neatly",
+         "What a surprise!"],
+    # flush
+    6 : ["Enemy points flushed down the drain!",
+         "Suited up. Classy result!",
+         "Easy win."],
+    # full house
+    7 : ["Boom.",
+         "When you and your squad get together",
+         "That wasnt a bluff."],
+    # four of a kind
+    8 : ["When a threesome just doesnt satisfy you anymore.",
+         "Are you kidding me?",
+         "Squad of quad to crush the pot"],
+    # straight flush
+    9 : ["AND THIS... IS TO GO EVEN FURTHER BEYOND... AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHH",
+         "ABSULUTE  MADMAN WOAH",
+         "Flush... crushed"],
+    # royal straight flush
+    10 : ["We forgot to include a message for this. It seemed just too unlikely."],
+}
 
 class PokerTimer(threading.Thread):
     def __init__(self, callbackf, args, seconds):
@@ -56,8 +95,9 @@ class Poker:
         self.bot = bot
         self.maxpoints = maxpoints
         self.callbackf = callbackf
-        self.roundcosts = [0, 0, 0, int(maxpoints*1/20), int(maxpoints*1/20), int(maxpoints*1/10)]  # depending on number of known cards
+        self.roundcosts = [0, 0, 0, int(maxpoints*1/20+0.5), int(maxpoints*1/20+0.5), int(maxpoints*1/10+0.5)]  # depending on number of known cards
         self.channel = channel
+        self.timeoutSeconds = TIMEOUT_SECONDS + min([TIMEOUT_SECONDS, int(self.maxpoints/25)])
         self.reset()
 
     def debugPrint(self, text):
@@ -79,6 +119,10 @@ class Poker:
         self.knownCards = 2
         _, self.midCards = self.__pickRandomCards(5)
         self.currentStake = 0
+        self.starttime = 0 # changed when first round begins
+
+    def getChannel(self):
+        return self.channel
 
     def __pickRandomCards(self, amount):
         if amount > len(self.remainingCards):
@@ -149,61 +193,79 @@ class Poker:
         return False, [], playercards
 
     def __cardsHighest(self, playercards):
-        hv, card = 0, (-1,-1)
-        for t,v in playercards:
+        # returns highest card, remaining
+        cards = playercards+[]
+        hv, index = -1, -1
+        for i in range(len(cards)):
+            t, v = cards[i]
             if v > hv:
                 hv = v
-                card = (t,v)
-        return card
+                index = i
+        if index >= 0:
+            card = cards.pop(index)
+            return card, cards
+        return (-1,-1), playercards
+
+    def __evaluateHelper(self, mv, cardgroups):
+        v, highest, rem = [mv], False, []
+        for cg in cardgroups:
+            rem = cg
+            while (len(rem) > 0) and (len(v) < 6):
+                highest, rem = self.__cardsHighest(rem)
+                v.append(highest[1])
+        return v
 
     def __evaluateCardsValue(self, playercards):
-        # TODO evaluate more than one remaining
         # returns [value of match, value1 of match card, value2 of match card, value of highest card]
         cards = playercards + self.midCards
-        isFlush, flushcards, remaining = self.__cardsIsFlush(cards)
-        isStraightFlush, sflushcards, remaining = self.__cardsIsStraight(flushcards)
-        highestFlushCard = self.__cardsHighest(flushcards)[1]
-        highestSFlushCard = self.__cardsHighest(sflushcards)[1]
-        isRoyalFlush = (highestSFlushCard == 14)
-        if isRoyalFlush:
+        isFlush, flushcards, _ = self.__cardsIsFlush(cards)
+        isStraightFlush, sflushcards, _ = self.__cardsIsStraight(flushcards)
+        highestSFlushCard, _ = self.__cardsHighest(sflushcards)
+        isRoyalFlush = (highestSFlushCard[1] == 14)
+        if isRoyalFlush and isStraightFlush:
             # royal straight flush
-            return [10, highestFlushCard, -1, -1]
+            return self.__evaluateHelper(10, [sflushcards])
         if isStraightFlush:
             # straight flush
-            return [9, highestFlushCard, -1, -1]
+            return self.__evaluateHelper(9, [sflushcards])
         isMultiple4, mult4cards, remaining = self.__cardsIsMultiple(cards, count=4)
         if isMultiple4:
             # four of a kind
-            mult4high = self.__cardsHighest(mult4cards)[1]
-            return [8, mult4high, -1, self.__cardsHighest(remaining)[1]]
+            return self.__evaluateHelper(8, [mult4cards, remaining])
         isMultiple3, mult3cards, mult3remaining = self.__cardsIsMultiple(cards, count=3)
-        mult3high = self.__cardsHighest(mult3cards)[1]
         if isMultiple3:
             isMultiple2, mult2cards, remaining = self.__cardsIsMultiple(mult3remaining, count=2)
             if isMultiple2:
                 # full house
-                return [7, mult3high, self.__cardsHighest(mult2cards)[1], -1]
+                return self.__evaluateHelper(7, [mult3cards, mult2cards])
         if isFlush:
             # regular flush
-            return [6, highestFlushCard, -1, -1]
+            return self.__evaluateHelper(6, [flushcards])
         isStraight, straightcards, remaining = self.__cardsIsStraight(cards)
         if isStraight:
             # regular straight
-            return [5, self.__cardsHighest(straightcards)[1], -1, -1]
+            return self.__evaluateHelper(5, [straightcards])
         if isMultiple3:
             # three of a kind
-            return [4, mult3high, -1, self.__cardsHighest(mult3remaining)[1]]
+            return self.__evaluateHelper(4, [mult3cards, mult3remaining])
         isMultiple2, mult2cards, remaining = self.__cardsIsMultiple(cards, count=2)
         if isMultiple2:
             isMultiple2second, mult2secondCards, mult2secondremaining = self.__cardsIsMultiple(remaining, count=2)
             if isMultiple2second:
                 # two pairs
-                return [3, self.__cardsHighest(mult2cards)[1], self.__cardsHighest(mult2secondCards)[1], self.__cardsHighest(mult2secondremaining)[1]]
+                return self.__evaluateHelper(3, [mult2cards, mult2secondCards, mult2secondremaining])
             # one pair
-            return [2, self.__cardsHighest(mult2cards)[1], -1, self.__cardsHighest(remaining)[1]]
-        return [1, -1, -1, self.__cardsHighest(cards)[1]]
+            return self.__evaluateHelper(2, [mult2cards, remaining])
+        return self.__evaluateHelper(1, [cards])
+
+    def __gameEndCommend(self, matchvalue, winnercount):
+        if winnercount > 1:
+            return random.sample(["And now kiss each other <3"], 1)[0]
+        return random.sample(cardCommentsOnMatchvalue[matchvalue], 1)[0]
 
     def __onGameEnd(self):
+        if not self.gameIsRunning:
+            return
         self.gameIsRunning = False
         # score
         self.debugPrint("\nPOKER GAME OVER")
@@ -238,23 +300,25 @@ class Poker:
                 highestUsers = nextHighestUsers
             winners = highestUsers
             winnername = highestUsers[0]
+            winningtype = self.players[highestUsers[0]]['cardvalues'][0]
             stringFormat = {
                 'name' : winnername,
                 'stake' : str(stake),
-                'type' : cardEvalToStringType[self.players[highestUsers[0]]['cardvalues'][0]],
+                'type' : cardEvalToStringType[winningtype],
                 'cards' : self.__readableCardList(self.players[highestUsers[0]]['cards']),
                 'midcards' : self.__readableCardList(self.midCards),
+                'comment' : self.__gameEndCommend(winningtype, len(winners)),
             }
             if len(winners) == 1:
                 # single winner
-                self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points with {type}! [{cards} | {midcards}]!".format(**stringFormat))
+                self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points with {type}! [{cards} | {midcards}]! {comment}".format(**stringFormat))
             else:
                 # multiple winner :O
                 stake = int(stake / len(winners))
                 gamecosts = int(gamecosts / len(winners))+1
                 stringFormat['name'] = ", ".join(winners)
                 stringFormat['stake'] = str(stake)
-                self.__outputToChat(self.channel, "Poker game over! {name} win {stake} points each with {type}!".format(**stringFormat))
+                self.__outputToChat(self.channel, "Poker game over! {name} win {stake} points each with {type}! {comment}".format(**stringFormat))
         # transfer points
         losersDict = {}
         winnersDict = {}
@@ -274,15 +338,19 @@ class Poker:
                 winnersDict[name] = pointsLost
             else:
                 losersDict[name] = pointsLost
-            self.chatpointsObj.transferBetweenKeysById(name, 'chatpoker-reserved', 'p', 999999999999, partial=True)
+            _, amount = self.chatpointsObj.transferBetweenKeysById(name, 'chatpoker-reserved', 'p', 999999999999, partial=True)
         self.chateventsObj.addEvent('chatpoker', {
             'winners' : winnersDict,
             'stakepw' : stake,
             'losers' : losersDict,
             'gamecostspw' : gamecosts,
+            'channel' : self.channel,
         })
+        for name in self.players.keys():
+            self.__outputToChat(name, "Poker game over! You have {} chat points now!".format(format(self.chatpointsObj.getPointsById(name), '.1f')))
         self.callbackf({
             'channel' : self.channel,
+            'starttime' : self.starttime,
         })
 
     def beginNewRound(self):
@@ -310,6 +378,7 @@ class Poker:
 
     def beginFirstRound(self, name):
         if (self.knownCards < 3) and (name in self.playerOrder):
+            self.starttime = time.time()
             order = self.playerOrder + []
             self.playerOrder = random.sample(order, len(order))
             self.beginNewRound()
@@ -357,7 +426,7 @@ class Poker:
         missingPoints = self.__getNecessaryCallPoints(nextPlayer)
         if self.gameIsRunning:
             self.__outputToChat(nextPlayer, "Your turn! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
-                'seconds' : TIMEOUT_SECONDS,
+                'seconds' : self.timeoutSeconds,
                 'points' : str(self.maxpoints - self.players[nextPlayer].get('totalpoints',0)),
                 'missing' : str(missingPoints)
             }))
@@ -365,7 +434,7 @@ class Poker:
             'name' : nextPlayer,
             'knowncards' : self.knownCards,
             'playersActionTaken' : self.playersActionTaken,
-        }, TIMEOUT_SECONDS).start()
+        }, self.timeoutSeconds).start()
 
     def __getNecessaryCallPoints(self, name):
         return self.currentStake - self.players[name]['roundpoints']
@@ -402,10 +471,14 @@ class Poker:
             }
             self.playerOrder.append(name)
             self.__outputToChat(name, "You've joined the game! Your cards: [{}]".format(self.__readableCardList(cards)))
+            self.__outputToChat(self.channel, "{name} joined the game! Playerlist: [{list}]".format(**{
+                'name' : name,
+                'list' : ', '.join(self.playerOrder),
+            }))
         else:
             self.__outputToChat(self.channel, "No cards left!")
         if len(self.playerOrder) == 1:
-            self.__outputToChat(self.channel, "A new poker game! Use '!cpoker signup' to join, and '!cpoker start' to start it! Requires {} points to join!".format(self.maxpoints))
+            self.__outputToChat(self.channel, "A new poker game! Use '!cpoker join' to join, and '!cpoker start' to start it! Requires {} points to join!".format(self.maxpoints))
         self.lock.release()
         return True
 
@@ -477,6 +550,13 @@ class Poker:
             self.__outputToChat(name, "Raising not possible, called instead")
         self.__informNext()
         self.lock.release()
+        return True
+
+    def reveal(self, name):
+        if self.gameIsRunning:
+            return False
+        if self.players.get(name, False):
+            self.__outputToChat(self.channel, name + "'s cards: " + self.__readableCardList(self.players[name]['cards']))
         return True
 
     def isRunning(self):

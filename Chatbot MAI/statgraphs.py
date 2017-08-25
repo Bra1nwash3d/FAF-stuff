@@ -4,6 +4,21 @@ from points import Points
 from events import Events
 import matplotlib.pyplot as plt
 
+pltSavePath = "plots/"
+pltSave = True
+pltShow = True
+plt.figure(figsize=(18,6))
+
+def savePlt(string):
+    if plt and pltSave:
+        plt.savefig("./" + pltSavePath + string.replace(':', '') + '.png')
+        plt.clf()
+        plt.cla()
+
+def showPlt():
+    if plt and pltShow:
+        plt.show()
+
 def plotPointsByLevel(chatpointsObj, points):
     yToNextLevel, yLevel = [], []
     for p in points:
@@ -16,7 +31,8 @@ def plotPointsByLevel(chatpointsObj, points):
     plt.ylabel("")
     plt.hlines([10*i for i in range(11)], points[0], points[-1])
     plt.legend(['Level'])
-    plt.show()
+    savePlt('Level')
+    showPlt()
 
 def getFormattedList(lst, firstElements=5, lastElements=5, groupRest=True, average=False, sort=True):
     if len(lst) == 0:
@@ -46,7 +62,8 @@ def plotListAsHist(lst, legendString):
     plt.xticks(x, [lst[i][0] for i in range(len(x))])
     plt.hlines([0], x[0]-0.5, x[-1]+0.5)
     plt.legend([legendString])
-    plt.show()
+    savePlt(legendString)
+    showPlt()
 
 def plotChattipsForName(chateventsObj, name, firstElements=5, lastElements=5):
     tippers = {}
@@ -124,10 +141,12 @@ chatpoints.save()
 #plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True, average=True)
 #plotGamblersTipreceivers(chatpoints, ignoreChannels=True, reversed=True)
 
+pltShow = False
+pltSave = True
 if True:
     plotMostPoints(chatpoints, firstElements=10, ignoreChannels=True)
     plotPointsWithoutInfluence(chatpoints, ignoreChannels=True, reversed=True)
     plotChattipsForName(chatevents, '#reset', firstElements=6, lastElements=0)
-    plotMost(chatpoints, "Chattips ", by='chattip', firstElements=5, lastElements=5, ignoreChannels=False)
-    plotMost(chatpoints, "Chatpoker ", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=True)
-    plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=5, lastElements=5, ignoreChannels=True)
+    plotMost(chatpoints, "Chattips", by='chattip', firstElements=5, lastElements=5, ignoreChannels=False)
+    plotMost(chatpoints, "Chatpoker", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=True)
+    plotMost(chatpoints, "Chatroulette", by='chatroulette', firstElements=5, lastElements=5, ignoreChannels=True)

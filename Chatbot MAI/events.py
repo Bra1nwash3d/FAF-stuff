@@ -40,4 +40,85 @@ class Events():
         self.lock.release()
 
     def getData(self, key):
-        return self.events.get(key, [])
+        return self.events.get(key, []) + []
+
+    def getFormattedRouletteData(self, key, filtername=False, minparticipants=2):
+        eventdata = self.getData(key)
+        if filtername:
+            i = 0
+            while i < len(eventdata):
+                game = eventdata[i]
+                if game['bets'].get(filtername, False): i += 1
+                else: eventdata.pop(i)
+        if minparticipants:
+            i = 0
+            while i < len(eventdata):
+                game = eventdata[i]
+                if len(game['bets']) >= minparticipants: i += 1
+                else: eventdata.pop(i)
+        if len(eventdata) == 0:
+            return {}
+        gamecount = max([len(eventdata), 1])
+        totalpoints = 0
+        highestwin, highestwinner = 0, ""
+        roibet, roiwin, roiratio, roiwinner = 0, 1, 0, ""
+        for game in eventdata:
+            gametotal = sum(game['bets'].values())
+            totalpoints += gametotal
+            gamewinner = game['winner']
+            gameroiratio = gametotal / game['bets'].get(gamewinner, 999999999)
+            if gametotal > highestwin:
+                highestwin = gametotal
+                highestwinner = gamewinner
+            if (gameroiratio > roiratio):
+                roiratio = gameroiratio
+                roibet = game['bets'].get(game['winner'], 999999999)
+                roiwin = gametotal
+                roiwinner = gamewinner
+        return {
+            "count": str(gamecount),
+            "totalpoints": str(totalpoints),
+            "avg": format(totalpoints / gamecount, '.1f'),
+            "hpoints": str(highestwin),
+            "hwinner": highestwinner,
+            "roibet": str(roibet),
+            "roiwin": str(roiwin),
+            "roiratio": format(roiratio, '.3f'),
+            "roiwinner": roiwinner,
+        }
+
+    # TODO
+    def getFormattedPokerData(self, key, filtername=False, minparticipants=2):
+        eventdata = self.getData(key)
+        if filtername:
+            i = 0
+            while i < len(eventdata):
+                game = eventdata[i]
+                if game['losers'].get(filtername, False) or game['winners'].get(filtername, False): i += 1
+                else: eventdata.pop(i)
+        if minparticipants:
+            i = 0
+            while i < len(eventdata):
+                game = eventdata[i]
+                if (len(game['losers']) + len(game['winners'])) >= minparticipants: i += 1
+                else: eventdata.pop(i)
+        if len(eventdata) == 0:
+            return {}
+        gamecount = max([len(eventdata), 1])
+        totalpoints = 0
+        highestwin, highestwinner = 0, []
+        for game in eventdata:
+            gametotal = sum(game['winners'].values()) + sum(game['losers'].values())
+            totalpoints += gametotal
+            gamewinners = game['winners']
+            if gametotal > highestwin:
+                highestwin = gametotal
+                highestwinner = [k for k in gamewinners.keys()]
+        return {
+            "count": str(gamecount),
+            "totalpoints": str(totalpoints),
+            "avg": format(totalpoints / gamecount, '.1f'),
+            "hpoints": str(highestwin),
+            "hwinners": highestwinner,
+        }
+

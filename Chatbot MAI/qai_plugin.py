@@ -26,6 +26,7 @@ from poker import Poker
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
+POKER_CHANNEL = "#poker" #   shadows
 IGNOREDUSERS = {}
 CDPRIVILEDGEDUSERS = {}
 NICKSERVIDENTIFIEDRESPONSES = {}
@@ -126,7 +127,7 @@ class Plugin(object):
             return
         if channel.startswith("#") and not sender.nick in IGNOREDUSERS.values():
             self.update_chatlevels(sender, channel, msg)
-            #self.AeolusMarkov.addLine(msg)
+            self.AeolusMarkov.addLine(msg)
 
     @irc3.event(irc3.rfc.KICK)
     @asyncio.coroutine
@@ -208,7 +209,7 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames']:
+        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatgames-'+MAIN_CHANNEL]:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -224,7 +225,8 @@ class Plugin(object):
         self.ChangelogMarkov = Markov(self, self.bot.config.get('markovwordsstorage_changelog', './dbmarkovChangelogs.json'))
         self.Chatpoints = Points(self.bot.config.get('chatlevelstorage', './chatlevel.json'))
         self.Chatevents = Events(self.bot.config.get('chateventstorage', './chatevents.json'))
-        self.Chatpoker = False
+        self.Chatpoker = {}
+        self.ChatpokerPrev = {}
 
         try:
             self.chatroulettethread.stop()
@@ -610,7 +612,6 @@ class Plugin(object):
     def chainf(self, mask, target, args):
         """ Chain words forwards <3
 
-            %%chainf
             %%chainf <word>
         """
         if self.spam_protect('chain', mask, target, args, specialSpamProtect='chain'):
@@ -635,8 +636,7 @@ class Plugin(object):
     def chainprob(self, mask, target, args):
         """ Retrieve the probability of words in order
 
-            %%chainprob <word1>
-            %%chainprob <word1> <word2>
+            %%chainprob <word1> [<word2>]
         """
         if self.spam_protect('chainprob', mask, target, args, specialSpamProtect='chainprob'):
             return
@@ -644,7 +644,7 @@ class Plugin(object):
         self.bot.privmsg(target, self.AeolusMarkov.chainprob(w1, w2))
 
     def update_chatlevels(self, mask, channel, msg):
-        global CHATLVLWORDS, MAIN_CHANNEL
+        global CHATLVLWORDS, MAIN_CHANNEL, POKER_CHANNEL
         points, text = 0, msg.lower()
         for word in CHATLVLWORDS.keys():
             if word in text:
@@ -654,7 +654,7 @@ class Plugin(object):
         if msg.startswith('!') or (avglen < 2):
             return
         points += min([0.4*wordcount, 1.2+0.2*wordcount, 6])
-        if channel == MAIN_CHANNEL:
+        if channel in self.__dbGet(['chatlvlchannels']).values():
             self.Chatpoints.updatePointsById(mask.nick, points)
         if channel.startswith('#'):
             self.Chatpoints.updatePointsById(channel, points)
@@ -675,41 +675,50 @@ class Plugin(object):
     def chatlvl(self, mask, target, args):
         """ Display chatlvl + points
 
-            %%chatlvl
-            %%chatlvl <name>
+            %%chatlvl [<name>]
         """
         location = target
         if self.spam_protect('chatlvl', mask, target, args, specialSpamProtect='chatlvl', ircSpamProtect=False):
+            if location == MAIN_CHANNEL:
+                location = mask.nick
+        if not location.startswith("#"):
             location = mask.nick
         name = args.get('<name>', False)
         if not name:
             name = mask.nick
         data = self.Chatpoints.getPointDataById(name)
         tipstring, roulettestring, pokerstring = "", "", ""
-        if data.get('chatroulette', False):
-            roulettestring = ", " + str(format(data.get('chatroulette'), '.1f')) + " from chat roulette"
-        if data.get('chatpoker', False):
-            pokerstring = ", " + str(format(data.get('chatpoker'), '.1f')) + " from chat poker"
+        additions = ""
         if data.get('chattip', False):
-            tipstring = ", " + str(format(data.get('chattip'), '.1f')) + " from chat tips"
-        self.bot.privmsg(location, "{object}'s level: {level}, points: {points} ({toUp} to next level, {total} in total){roulettestring}{tipstring}{pokerstring}".format(**{
+            additions += ", " + str(format(data.get('chattip'), '.1f')) + " from tips"
+        if data.get('chatpoker', False):
+            additions += ", " + str(format(data.get('chatpoker'), '.1f')) + " from poker"
+        if data.get('chatroulette', False):
+            additions += ", " + str(format(data.get('chatroulette'), '.1f')) + " from roulette"
+        self.bot.privmsg(location, "{object}'s points: {total}, level {level}, {toUp} to next level{additions}".format(**{
                 "object": name,
                 "level": str(data.get('level', 1)),
                 "points": format(data.get('points', 1), '.1f'),
                 "toUp": format(data.get('tonext', 1), '.1f'),
                 "total": format(data.get('p', 1), '.1f'),
-                "roulettestring": roulettestring,
-                "tipstring": tipstring,
-                "pokerstring": pokerstring,
+                "additions": additions
             }))
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def chattipadmin(self, mask, target, args):
+        """ Tip some chatlvl points to someone <3
+
+            %%chattipadmin <channel> <giver> <name> [<points/all>]
+        """
+        yield from self.chattip(mask, target, args)
 
     @command()
     @asyncio.coroutine
     def chattip(self, mask, target, args):
         """ Tip some chatlvl points to someone <3
 
-            %%chattip <name>
-            %%chattip <name> <points/all>
+            %%chattip <name> [<points/all>]
         """
         if not (yield from self.__isNickservIdentified(mask.nick)):
             return
@@ -721,6 +730,9 @@ class Plugin(object):
             channel = mask.nick
         takername, points = args.get('<name>', False), args.get('<points/all>')
         givername = mask.nick
+        if args.get('chattipadmin', False):
+            givername = args.get('<giver>')
+            channel = args.get('<channel>', channel)
         """
         if takername in IGNOREDUSERS.values():
             self.bot.privmsg(mask.nick, "This user is on the ignore list and can not be tipped.")
@@ -741,7 +753,6 @@ class Plugin(object):
             CHATLVL_COMMANDLOCK.release()
             self.debugPrint('commandlock release chattip 2')
             return
-
         self.Chatevents.addEvent('chattip', {
             'giver' : givername,
             'taker' : takername,
@@ -801,12 +812,12 @@ class Plugin(object):
 
             %%chatladder
             %%chatladder all
-            %%chatladder tip
-            %%chatladder tip rev
-            %%chatladder roulette
-            %%chatladder roulette rev
+            %%chatladder tip [rev]
+            %%chatladder roulette [rev]
+            %%chatladder poker [rev]
         """
-        tip, roulette, rev, all = args.get('tip'), args.get('roulette'), args.get('rev', False), args.get('all', False)
+        tip, roulette, poker = args.get('tip'), args.get('roulette'), args.get('poker')
+        rev, all = args.get('rev', False), args.get('all', False)
         if self.spam_protect('chatladder', mask, target, args, specialSpamProtect='chatladder'):
             return
         global CHATLVLS, CHATLVL_TOPPLAYERS
@@ -826,6 +837,12 @@ class Plugin(object):
             if rev:
                 announceString = "Unlucky roulette players (won-lost): {list}"
             individualString = "{name} with {chatroulette} points"
+        elif poker:
+            ladder = self.Chatpoints.getSortedBy(by='chatpoker', reversed=(not rev))
+            announceString = "Successful poker players (won-lost): {list}"
+            if rev:
+                announceString = "Unsuccessful poker players (won-lost): {list}"
+            individualString = "{name} with {chatpoker} points"
         elif default:
             ladder = self.Chatpoints.getSortedBy(by='p', reversed=True)
             announceString = "Top chatwarriors: {list}"
@@ -842,6 +859,7 @@ class Plugin(object):
                     "level": playerdata.get('level', 0),
                     "chattip": format(playerdata.get('chattip', 0), '.1f'),
                     "chatroulette": format(playerdata.get('chatroulette', 0), '.1f'),
+                    "chatpoker": format(playerdata.get('chatpoker', 0), '.1f'),
                 }))
                 announced += 1
                 top5[name] = announced
@@ -859,68 +877,37 @@ class Plugin(object):
     def chatstats(self, mask, target, args):
         """ The names of the top ladder warriors
 
-            %%chatstats
-            %%chatstats roulette
-            %%chatstats roulette <name>
+            %%chatstats roulette [<name>]
             %%chatstats roulette minplayers <playercount>
+            %%chatstats poker [<name>]
+            %%chatstats poker minplayers <playercount>
         """
-        roulette, minplayers, name, playercount = args.get('roulette'), args.get('minplayers'), args.get('<name>'), args.get('<playercount>')
+        roulette, poker, minplayers, name, playercount = args.get('roulette'), args.get('poker'), args.get('minplayers'), args.get('<name>'), args.get('<playercount>')
         channel = target
         if self.spam_protect('chatstats', mask, target, args, specialSpamProtect='chatstats'):
             channel = mask.nick
+        if playercount:
+            try:
+                playercount = int(playercount)
+            except:
+                playercount = 2
         if roulette:
-            rouletteevents = []
-            if name:
-                id = name # to change
-                for game in self.Chatevents.getData('chatroulette'):
-                    if game['bets'].get(id, False):
-                        rouletteevents.append(game)
-            elif minplayers:
-                try:
-                    playercount = int(playercount)
-                except:
-                    playercount = 2
-                for game in self.Chatevents.getData('chatroulette'):
-                    if len(game['bets']) >= playercount:
-                        rouletteevents.append(game)
-            else:
-                rouletteevents = self.Chatevents.getData('chatroulette')
-            if len(rouletteevents) == 0:
-                return "There are 0 events to talk about!"
-            totalpoints = 0
-            highestwin, highestwinner = 0, ""
-            roibet, roiwin, roiratio, roiwinner = 0, 1, 0, ""
-            gamecount = max([len(rouletteevents), 1])
-            for game in rouletteevents:
-                gametotal = sum(game['bets'].values()) - game['bets'].get(self.bot.config['nick'], 0)
-                totalpoints += gametotal
-                gamewinner = game['winner']
-                gameroiratio = gametotal / game['bets'].get(gamewinner, 999999999)
-                if gametotal > highestwin:
-                    highestwin = gametotal
-                    highestwinner = gamewinner
-                if (gameroiratio > roiratio) and not (gamewinner == self.bot.config['nick']):
-                    roiratio = gameroiratio
-                    roibet = game['bets'].get(game['winner'], 999999999)
-                    roiwin = gametotal
-                    roiwinner = gamewinner
-            winnername = self.Chatpoints.getById(highestwinner)['n']
-            hwinnername = self.getUnpingableName(winnername)
-            roiname = self.Chatpoints.getById(roiwinner)['n']
-            roiwinnername = self.getUnpingableName(roiname)
+            data = self.Chatevents.getFormattedRouletteData('chatroulette', name, playercount)
+            if len(data) < 1:
+                return "There are no games to talk about!"
+            data['hwinner'] = self.getUnpingableName(self.Chatpoints.getById(data['hwinner'])['n'])
+            data['roiwinner'] = self.getUnpingableName(self.Chatpoints.getById(data['roiwinner'])['n'])
             self.bot.action(channel, "Chatroulette stats! Total games: {count}, total points bet: {totalpoints}, average points per game: {avg}, "\
                                     "highest stake game: {hpoints} points won by {hwinner}, "\
-                                    "highest ROI game: (R={roiwin}; I={roibet}, ratio={roiratio}) by {roiwinner}".format(**{
-                    "count": str(gamecount),
-                    "totalpoints": str(totalpoints),
-                    "avg": format(totalpoints / gamecount, '.1f'),
-                    "hpoints": str(highestwin),
-                    "hwinner": hwinnername,
-                    "roibet": str(roibet),
-                    "roiwin": str(roiwin),
-                    "roiratio": format(roiratio, '.3f'),
-                    "roiwinner": roiwinnername,
-                }))
+                                    "highest ROI game: (R={roiwin}; I={roibet}, ratio={roiratio}) by {roiwinner}".format(**data))
+            return
+        if poker:
+            data = self.Chatevents.getFormattedPokerData('chatpoker', name, playercount)
+            if len(data) < 1:
+                return "There are no games to talk about!"
+            data['hwinners'] = ", ".join([self.getUnpingableName(self.Chatpoints.getById(name)['n']) for name in data['hwinners']])
+            self.bot.action(channel, "Chatpoker stats! Total games: {count}, total points: {totalpoints}, average points per game: {avg}, "\
+                                    "highest stake game: {hpoints} points won by {hwinners}".format(**data))
             return
 
     @command(permission='admin', public=False, show_in_help_list=False)
@@ -968,7 +955,7 @@ class Plugin(object):
         except:
             points = 5
         self.Chatpoints.updateById(name, delta={'p' : -points}, allowNegative=False, partial=True)
-        self.bot.action(target, "slaps {name}, causing him/her to lose {points} points".format(**{
+        self.bot.action(target, "slaps {name}, causing them to lose {points} points".format(**{
                 "name": name,
                 "points": str(points),
             }))
@@ -1005,48 +992,65 @@ class Plugin(object):
     @command
     @asyncio.coroutine
     def cpoker(self, mask, target, args):
-        """ %%cpoker signup
-            %%cpoker signup <points>
+        """ %%cpoker join [<points>]
             %%cpoker fold
             %%cpoker call
             %%cpoker raise <points>
             %%cpoker start
+            %%cpoker reveal
         """
-        if self.spam_protect('chatgames', mask, target, args, specialSpamProtect='chatgames', updateTimer=False):
+        global CHATLVL_COMMANDLOCK, MAIN_CHANNEL, POKER_CHANNEL
+        if (target == MAIN_CHANNEL):
+            self.bot.privmsg(mask.nick, "Poker is heavily limited in {main} atm, due to the spam! ''!join {channel}'' to play with others!".format(**{
+                "main" : MAIN_CHANNEL,
+                "channel": POKER_CHANNEL,
+            }))
+            self.debugPrint('commandlock release chatpoker spam')
             return
-        global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
         if self.chatroulettethread:
             CHATLVL_COMMANDLOCK.release()
             return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatpoker')
-        signup, fold, call, raise_, points, start = args.get('signup'), args.get('fold'), args.get('call'), args.get('raise'), args.get('<points>'), args.get('start')
+        join, start, reveal = args.get('join'), args.get('start'), args.get('reveal')
+        fold, call, raise_, points = args.get('fold'), args.get('call'), args.get('raise'), args.get('<points>')
         if points:
             try:
                 points = abs(int(points))
-            except:
+            except Exception:
                 CHATLVL_COMMANDLOCK.release()
-                self.debugPrint('commandlock release chatpoker 1')
+                self.debugPrint('commandlock release chatpoker 2')
                 return
         else:
             points = 50
-        if not self.Chatpoker:
-            self.Chatpoker = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, points)
+        if reveal and self.ChatpokerPrev.get(target, False):
+            self.ChatpokerPrev[target].reveal(mask.nick)
+            CHATLVL_COMMANDLOCK.release()
+            return
+        if self.spam_protect('chatgames', mask, target, args, specialSpamProtect='chatgames', updateTimer=False):  # TODO check, different timers?
+            CHATLVL_COMMANDLOCK.release()
+            self.debugPrint('commandlock release chatpoker spam')
+            return
+        if not self.Chatpoker.get(target, False):
+            self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, points)
         if start:
-            self.Chatpoker.beginFirstRound(mask.nick)
+            self.Chatpoker[target].beginFirstRound(mask.nick)
         if call:
-            self.Chatpoker.call(mask.nick)
+            self.Chatpoker[target].call(mask.nick)
         if fold:
-            self.Chatpoker.fold(mask.nick)
-        if signup:
-            self.Chatpoker.signup(mask.nick)
+            self.Chatpoker[target].fold(mask.nick)
+        if join:
+            self.Chatpoker[target].signup(mask.nick)
         if raise_:
-            self.Chatpoker.raise_(mask.nick, points)
+            self.Chatpoker[target].raise_(mask.nick, points)
         CHATLVL_COMMANDLOCK.release()
 
     def on_cpoker_done(self, args={}):
-        self.Chatpoker = False
-        self.spam_protect('chatgames', self.bot.config['nick'], args.get('channel', MAIN_CHANNEL), {}, specialSpamProtect='chatgames', setToNow=True)
+        channel = args.get('channel', POKER_CHANNEL)
+        self.ChatpokerPrev[channel] = self.Chatpoker[channel]
+        self.Chatpoker[channel] = False
+        print("poker game duration:", time.time() - args.get('starttime'))
+        self.spam_protect('chatgames', self.bot.config['nick'], channel, {}, specialSpamProtect='chatgames', setToNow=True)
         self.save(args={
             'path' : 'poker/',
             'keep' : 5,
@@ -1073,7 +1077,7 @@ class Plugin(object):
             return
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
-        if self.Chatpoker:
+        if self.Chatpoker.get(target, False):
             CHATLVL_COMMANDLOCK.release()
             return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatroulette')
@@ -1301,7 +1305,7 @@ class Plugin(object):
                 self.bot.privmsg(nick, "You are on the ignore list, commands will not be executed.")
             return True
         if ircSpamProtect:
-            if target != MAIN_CHANNEL:
+            if not target == MAIN_CHANNEL:
                 return False
         if not cmd in self.timers:
             self.timers[cmd] = {}
@@ -1335,6 +1339,16 @@ class Plugin(object):
         elems = self.__getRandomDictElements(self.__dbGet(path), 1)
         if len(elems) > 0:
             self.bot.privmsg(target, elems[0])
+
+    @command(permission='admin', public=False)
+    @asyncio.coroutine
+    def chatlvlchannels_(self, mask, target, args):
+        """Adds/removes a given channel to those which points can be farmed in
+            %%chatlvlchannels_ get
+            %%chatlvlchannels_ add TEXT ...
+            %%chatlvlchannels_ del <ID>
+        """
+        return self.__genericCommandManage(mask, target, args, ['chatlvlchannels'])
 
     def __genericCommandManage(self, mask, target, args, path, allowSameValue=False):
         """
@@ -1405,7 +1419,7 @@ class Plugin(object):
         """
         words = ["join", "leave", "files", "cd", "savedb", "twitchjoin", "twitchleave",\
                  "twitchmsg", "list", "ignore", "cdprivilege",\
-                 "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart", "chatgamesadmin"]
+                 "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart", "chatgamesadmin", "chatlvlchannels_", "chattipadmin"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         #for word in words:
         #    self.bot.privmsg(mask.nick, "- " + word)
