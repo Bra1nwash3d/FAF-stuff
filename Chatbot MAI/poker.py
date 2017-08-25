@@ -98,6 +98,8 @@ class Poker:
         self.roundcosts = [0, 0, 0, int(maxpoints*1/20+0.5), int(maxpoints*1/20+0.5), int(maxpoints*1/10+0.5)]  # depending on number of known cards
         self.channel = channel
         self.timeoutSeconds = TIMEOUT_SECONDS + min([TIMEOUT_SECONDS, int(self.maxpoints/25)])
+        self.chatpointsDefaultKey = 'p'
+        self.chatpointsReservedKey = 'chatpoker-reserved'
         self.reset()
 
     def debugPrint(self, text):
@@ -258,7 +260,7 @@ class Poker:
             return self.__evaluateHelper(2, [mult2cards, remaining])
         return self.__evaluateHelper(1, [cards])
 
-    def __gameEndCommend(self, matchvalue, winnercount):
+    def __gameEndComment(self, matchvalue, winnercount):
         if winnercount > 1:
             return random.sample(["And now kiss each other <3"], 1)[0]
         return random.sample(cardCommentsOnMatchvalue[matchvalue], 1)[0]
@@ -307,7 +309,7 @@ class Poker:
                 'type' : cardEvalToStringType[winningtype],
                 'cards' : self.__readableCardList(self.players[highestUsers[0]]['cards']),
                 'midcards' : self.__readableCardList(self.midCards),
-                'comment' : self.__gameEndCommend(winningtype, len(winners)),
+                'comment' : self.__gameEndComment(winningtype, len(winners)),
             }
             if len(winners) == 1:
                 # single winner
@@ -327,18 +329,18 @@ class Poker:
             pointsLost = self.players[name]['totalpoints']
             dct = {name : pointsLost/len(winners)}
             for winner in winners:
-                self.chatpointsObj.transferByIds(winner, dct, receiverKey='p', giverKey='chatpoker-reserved', allowNegative=False, partial=False)
+                self.chatpointsObj.transferByIds(winner, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsReservedKey, allowNegative=False, partial=False)
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
             # making up for game costs
             if name in winners:
                 self.debugPrint(name + ' winning, so tipping ' + str(gamecosts) + ' to ' + GAMECOSTRECEIVER)
                 dct = {name : gamecosts}
-                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='p', giverKey='p', allowNegative=False, partial=False)
+                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
                 self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
                 winnersDict[name] = pointsLost
             else:
                 losersDict[name] = pointsLost
-            _, amount = self.chatpointsObj.transferBetweenKeysById(name, 'chatpoker-reserved', 'p', 999999999999, partial=True)
+            _, amount = self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, 999999999999, partial=True)
         self.chateventsObj.addEvent('chatpoker', {
             'winners' : winnersDict,
             'stakepw' : stake,
@@ -347,7 +349,7 @@ class Poker:
             'channel' : self.channel,
         })
         for name in self.players.keys():
-            self.__outputToChat(name, "Poker game over! You have {} chat points now!".format(format(self.chatpointsObj.getPointsById(name), '.1f')))
+            self.__outputToChat(name, "Poker game over! You have {} points now!".format(format(self.chatpointsObj.getById(name).get(self.chatpointsDefaultKey, 0), '.1f')))
         self.callbackf({
             'channel' : self.channel,
             'starttime' : self.starttime,
@@ -440,7 +442,7 @@ class Poker:
         return self.currentStake - self.players[name]['roundpoints']
 
     def __reservePlayerPoints(self, name):
-        worked, _ = self.chatpointsObj.transferBetweenKeysById(name, 'p', 'chatpoker-reserved', self.maxpoints, partial=False)
+        worked, _ = self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsDefaultKey, self.chatpointsReservedKey, self.maxpoints, partial=False)
         return worked
 
     def signup(self, name):

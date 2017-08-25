@@ -148,5 +148,5 @@ if True:
     plotPointsWithoutInfluence(chatpoints, ignoreChannels=True, reversed=True)
     plotChattipsForName(chatevents, '#reset', firstElements=6, lastElements=0)
     plotMost(chatpoints, "Chattips", by='chattip', firstElements=5, lastElements=5, ignoreChannels=False)
-    plotMost(chatpoints, "Chatpoker", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=True)
+    plotMost(chatpoints, "Chatpoker", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=False)
     plotMost(chatpoints, "Chatroulette", by='chatroulette', firstElements=5, lastElements=5, ignoreChannels=True)

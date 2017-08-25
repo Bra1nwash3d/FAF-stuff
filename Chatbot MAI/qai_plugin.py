@@ -229,12 +229,14 @@ class Plugin(object):
         self.ChatpokerPrev = {}
 
         try:
-            self.chatroulettethread.stop()
+            if self.chatroulettethreads:
+                for t in self.chatroulettethreads.keys():
+                    t.stop()
             self.timedSavingThread.stop()
             self.twitchthread.stop()
         except:
             pass
-        self.chatroulettethread = False
+        self.chatroulettethreads = {}
         self.timedSavingThread = periodicCallback(self.save, isAsyncioCallback=False,
                                                   args={'path' : 'auto/', 'keep' : 72},
                                                   seconds=self.bot.config.get('autosave', 300))
@@ -458,20 +460,20 @@ class Plugin(object):
         return True
 
     def chatreset(self):
+        # TODO while chatgames?
         global CHATLVL_EPOCH
-        if not self.chatroulettethread:
-            self.save(args = {
-                'path' : 'reset/'+str(CHATLVL_EPOCH)+'/',
-                'keep' : 100000,
-            })
-            self.Chatpoints.reset()
-            self.Chatevents.reset()
-            CHATLVL_EPOCH += 1
-            self.save(args = {
-                'path' : 'post-reset/',
-                'keep' : 5,
-            })
-            self.__dbAdd(['chatlvlmisc'], 'epoch', CHATLVL_EPOCH, overwriteIfExists=True, save=True)
+        self.save(args = {
+            'path' : 'reset/'+str(CHATLVL_EPOCH)+'/',
+            'keep' : 100000,
+        })
+        self.Chatpoints.reset()
+        self.Chatevents.reset()
+        CHATLVL_EPOCH += 1
+        self.save(args = {
+            'path' : 'post-reset/',
+            'keep' : 5,
+        })
+        self.__dbAdd(['chatlvlmisc'], 'epoch', CHATLVL_EPOCH, overwriteIfExists=True, save=True)
 
     @command(permission='admin')
     @asyncio.coroutine
@@ -1008,7 +1010,7 @@ class Plugin(object):
             self.debugPrint('commandlock release chatpoker spam')
             return
         CHATLVL_COMMANDLOCK.acquire()
-        if self.chatroulettethread:
+        if self.chatroulettethreads.get(target, False):
             CHATLVL_COMMANDLOCK.release()
             return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatpoker')
@@ -1049,6 +1051,7 @@ class Plugin(object):
         channel = args.get('channel', POKER_CHANNEL)
         self.ChatpokerPrev[channel] = self.Chatpoker[channel]
         self.Chatpoker[channel] = False
+        del self.Chatpoker[channel]
         print("poker game duration:", time.time() - args.get('starttime'))
         self.spam_protect('chatgames', self.bot.config['nick'], channel, {}, specialSpamProtect='chatgames', setToNow=True)
         self.save(args={
@@ -1107,9 +1110,9 @@ class Plugin(object):
             return
         seconds = 20
         addedSeconds = min([10, points])  # to roulette timer
-        if (not self.chatroulettethread):
-            self.chatroulettethread = timedInputAccumulatorThread(callbackf=self.on_chatroulette_finished_noasync, args={"channel":target}, seconds=seconds, maxduration=60)
-            self.chatroulettethread.start()
+        if (not self.chatroulettethreads.get(target)):
+            self.chatroulettethreads[target] = timedInputAccumulatorThread(callbackf=self.on_chatroulette_finished_noasync, args={"channel":target}, seconds=seconds, maxduration=60)
+            self.chatroulettethreads[target].start()
             self.bot.privmsg(target, "{name} is starting a chat roulette! Quickly, bet your points! ({seconds} seconds, betting is dangerous and can be addicting)".format(**{
                     "name": mask.nick,
                     "seconds": seconds,
@@ -1119,7 +1122,7 @@ class Plugin(object):
                     "name": mask.nick,
                     "seconds": str(addedSeconds),
                 }))
-        self.chatroulettethread.addInput((mask.nick, points), addSeconds=addedSeconds)
+        self.chatroulettethreads[target].addInput((mask.nick, points), addSeconds=addedSeconds)
         if allin:
             self.bot.action(target, "{name} is going all in with {points} points!".format(**{
                     "name": mask.nick,
@@ -1174,9 +1177,9 @@ class Plugin(object):
         self.Chatpoints.transferByIds(winner, result, receiverKey='chatroulette', giverKey='chatroulette', allowNegative=True, partial=False)
         #self.Chatpoints.transferBetweenKeysForAll('chatroulette-reserved', 'p', 99999999999, deleteOld=False) # recover original points which might lost to hickup etc
         # cooldown, data
-        if self.chatroulettethread:
-            self.chatroulettethread.stop()
-            self.chatroulettethread = False
+        if self.chatroulettethreads.get(args.get('channel'), False):
+            self.chatroulettethreads[args.get('channel')].stop()
+            del self.chatroulettethreads[args.get('channel')]
         self.Chatevents.addEvent('chatroulette', {
             'winner' : winner,
             'bets' : result
