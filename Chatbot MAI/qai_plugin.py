@@ -917,8 +917,8 @@ class Plugin(object):
     def chatlvlpoints(self, mask, target, args):
         """ Add/remove points of player
 
-            %%chatlvlpoints add <name> <points>
-            %%chatlvlpoints remove <name> <points>
+            %%chatlvlpoints add <name> <points> [<type>]
+            %%chatlvlpoints remove <name> <points> [<type>]
         """
         if not (yield from self.__isNickservIdentified(mask.nick)):
             return
@@ -933,7 +933,7 @@ class Plugin(object):
             points = 0
         if remove:
             points *= -1
-        self.Chatpoints.updateById(name, delta={'p' : points}, allowNegative=False, partial=True)
+        self.Chatpoints.updateById(name, delta={args.get('<type>', 'p') : points}, allowNegative=False, partial=True)
         self.bot.action(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatlvlpoints eof')
@@ -982,11 +982,9 @@ class Plugin(object):
         restore, roulette, poker = args.get('restore'), args.get('roulette'), args.get('poker')
         if restore:
             keyFrom, keyTo = 'reserved', 'p'
-            if roulette:
-                keyFrom = 'chatroulette-reserved'
-            if poker:
-                keyFrom = 'chatpoker-reserved'
-            self.Chatpoints.transferBetweenKeysForAll(keyFrom, keyTo, 99999999999, deleteOld=False)
+            if roulette: keyFrom = 'chatroulette-reserved'
+            if poker: keyFrom = 'chatpoker-reserved'
+            self.Chatpoints.transferBetweenKeysForAll(keyFrom, keyTo, 99999999999, deleteOld=True)
         self.bot.privmsg(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatgamesadmin eof')
@@ -995,6 +993,7 @@ class Plugin(object):
     @asyncio.coroutine
     def cpoker(self, mask, target, args):
         """ %%cpoker join [<points>]
+            %%cpoker signup [<points>]
             %%cpoker fold
             %%cpoker call
             %%cpoker raise <points>
@@ -1014,8 +1013,7 @@ class Plugin(object):
             CHATLVL_COMMANDLOCK.release()
             return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatpoker')
-        join, start, reveal = args.get('join'), args.get('start'), args.get('reveal')
-        fold, call, raise_, points = args.get('fold'), args.get('call'), args.get('raise'), args.get('<points>')
+        points = args.get('<points>')
         if points:
             try:
                 points = abs(int(points))
@@ -1025,7 +1023,8 @@ class Plugin(object):
                 return
         else:
             points = 50
-        if reveal and self.ChatpokerPrev.get(target, False):
+        points = max([points, 50])
+        if args.get('reveal') and self.ChatpokerPrev.get(target, False):
             self.ChatpokerPrev[target].reveal(mask.nick)
             CHATLVL_COMMANDLOCK.release()
             return
@@ -1035,15 +1034,15 @@ class Plugin(object):
             return
         if not self.Chatpoker.get(target, False):
             self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, points)
-        if start:
+        if args.get('start'):
             self.Chatpoker[target].beginFirstRound(mask.nick)
-        if call:
+        if args.get('call'):
             self.Chatpoker[target].call(mask.nick)
-        if fold:
+        if args.get('fold'):
             self.Chatpoker[target].fold(mask.nick)
-        if join:
+        if args.get('join') or args.get('signup'):
             self.Chatpoker[target].signup(mask.nick)
-        if raise_:
+        if args.get('raise'):
             self.Chatpoker[target].raise_(mask.nick, points)
         CHATLVL_COMMANDLOCK.release()
 

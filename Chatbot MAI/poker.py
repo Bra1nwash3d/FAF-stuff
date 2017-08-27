@@ -10,6 +10,7 @@ GAMECOST = 2.5  # percent of wins
 GAMECOSTRECEIVER = '#poker'
 
 cardToStringValue = {
+    1 : 'A',
     11 : 'J',
     12 : 'Q',
     13 : 'K',
@@ -33,36 +34,44 @@ cardEvalToStringType = {
     9 : 'a straight flush',
     10 : 'a Royal Straight Flush',
 }
-cardCommentsOnMatchvalue = {
+cardCommentsOnMatchValue = {
     # highest card
-    1 : ["Sometimes you just find 5$ on the street, this is the time",
+    1 : ["", "", "", "", "",
+         "Sometimes you just find 5$ on the street, this is the time",
          "Neither has anything, but one must win."],
     # pair
-    2 : ["Everyone on FAF is single, not you this time!",
+    2 : ["", "", "", "", "",
+         "Everyone on FAF is single, not you this time!",
          "Sometimes you don't need that much luck.",
          "Just enough work to win."],
     # two pairs
-    3 : ["Good job. You might not be as lucky next time.",
+    3 : ["", "", "", "", "",
+         "Good job. You might not be as lucky next time.",
          "Crushed.",
          "One for every limb you got. Unless you don't."],
     # three of a kind
-    4 : ["At least you have threesomes on FAF.",
+    4 : ["", "", "", "", "",
+         "At least you have threesomes on FAF.",
          "OOOOOHHH BABY A TRIPPLE",
          "A good result, isn't it."],
     # straight
-    5 : ["You might not be, but you got a straight.",
+    5 : ["", "",
+         "You might not be, but you got a straight.",
          "If only your life lined up just as neatly",
          "What a surprise!"],
     # flush
-    6 : ["Enemy points flushed down the drain!",
+    6 : ["", "",
+         "Enemy points flushed down the drain!",
          "Suited up. Classy result!",
          "Easy win."],
     # full house
-    7 : ["Boom.",
+    7 : ["", "",
+         "Boom.",
          "When you and your squad get together",
          "That wasnt a bluff."],
     # four of a kind
-    8 : ["When a threesome just doesnt satisfy you anymore.",
+    8 : ["", "",
+         "When a threesome just doesnt satisfy you anymore.",
          "Are you kidding me?",
          "Squad of quad to crush the pot"],
     # straight flush
@@ -88,7 +97,8 @@ class PokerTimer(threading.Thread):
 
 
 class Poker:
-    def __init__(self, bot, callbackf, chatpointsObj, chateventsObj, channel, maxpoints):
+    def __init__(self, bot, callbackf, chatpointsObj, chateventsObj, channel, maxpoints,
+                 chatpointsDefaultKey='p', chatpointsReservedKey='chatpoker-reserved', chatpointsStatisticsKey='chatpoker'):
         self.lock = threading.Lock()
         self.chatpointsObj = chatpointsObj
         self.chateventsObj = chateventsObj
@@ -98,8 +108,9 @@ class Poker:
         self.roundcosts = [0, 0, 0, int(maxpoints*1/20+0.5), int(maxpoints*1/20+0.5), int(maxpoints*1/10+0.5)]  # depending on number of known cards
         self.channel = channel
         self.timeoutSeconds = TIMEOUT_SECONDS + min([TIMEOUT_SECONDS, int(self.maxpoints/25)])
-        self.chatpointsDefaultKey = 'p'
-        self.chatpointsReservedKey = 'chatpoker-reserved'
+        self.chatpointsDefaultKey = chatpointsDefaultKey
+        self.chatpointsReservedKey = chatpointsReservedKey
+        self.chatpointsStatisticsKey = chatpointsStatisticsKey
         self.reset()
 
     def debugPrint(self, text):
@@ -139,8 +150,7 @@ class Poker:
 
     def __readableCard(self, card):
         t, v = card
-        if v >= 11:
-            v = cardToStringValue[v]
+        v = cardToStringValue.get(v, v)
         t = cardToStringType[t]
         return str(v)+t
 
@@ -162,23 +172,28 @@ class Poker:
 
     def __cardsIsStraight(self, playercards):
         # return true/false, subset (at least 5), remaining
-        # TODO Ace also counts as 1? then change to range(14, 4, -1)
         cards = playercards + []
         cards = sorted(cards, key=lambda v: v[1], reverse=True)
-        for number in range(14, 5, -1):
+        for number in range(14, 4, -1):
             used = [False for i in range(len(cards))]
+            usedAce = [False for i in range(len(cards))]
             for n in range(number, number-5, -1):
                 for i in range(len(cards)):
                     t,v = cards[i]
                     if v==n:
                         used[i] = True
                         break
-            if sum(used) >= 5:
+                    if v==14 and n==1: # ace also counts as 1
+                        usedAce[i] = True
+                        break
+            if sum(used)+sum(usedAce) >= 5:
                 straight, remaining = [], []
                 for i in range(len(cards)):
                     t,v = cards[i]
                     if used[i]: straight.append((t,v))
+                    elif usedAce[i]: straight.append((t,1))
                     else: remaining.append((t,v))
+                straight = sorted(straight, key=lambda v: v[1], reverse=True)
                 return True, straight, remaining
         return False, [], playercards
 
@@ -263,7 +278,7 @@ class Poker:
     def __gameEndComment(self, matchvalue, winnercount):
         if winnercount > 1:
             return random.sample(["And now kiss each other <3"], 1)[0]
-        return random.sample(cardCommentsOnMatchvalue[matchvalue], 1)[0]
+        return random.sample(cardCommentsOnMatchValue[matchvalue], 1)[0]
 
     def __onGameEnd(self):
         if not self.gameIsRunning:
@@ -330,18 +345,18 @@ class Poker:
             dct = {name : pointsLost/len(winners)}
             for winner in winners:
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsReservedKey, allowNegative=False, partial=False)
-                self.chatpointsObj.transferByIds(winner, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
+                self.chatpointsObj.transferByIds(winner, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
             # making up for game costs
             if name in winners:
                 self.debugPrint(name + ' winning, so tipping ' + str(gamecosts) + ' to ' + GAMECOSTRECEIVER)
                 dct = {name : gamecosts}
                 self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
-                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey='chatpoker', giverKey='chatpoker', allowNegative=True, partial=False)
+                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
                 winnersDict[name] = pointsLost
             else:
                 losersDict[name] = pointsLost
             _, amount = self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, 999999999999, partial=True)
-        self.chateventsObj.addEvent('chatpoker', {
+        self.chateventsObj.addEvent(self.chatpointsStatisticsKey, {
             'winners' : winnersDict,
             'stakepw' : stake,
             'losers' : losersDict,
