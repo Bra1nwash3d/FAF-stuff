@@ -6,8 +6,6 @@ import time
 
 useDebugPrint = False
 TIMEOUT_SECONDS = 30  # increased by entryrequirement/10, max 2*
-GAMECOST = 2.5  # percent of wins
-GAMECOSTRECEIVER = '#poker'
 
 cardToStringValue = {
     1 : 'A',
@@ -36,11 +34,11 @@ cardEvalToStringType = {
 }
 cardCommentsOnMatchValue = {
     # highest card
-    1 : ["", "", "", "", "",
+    1 : ["", "", "", "", "", "", "",
          "Sometimes you just find 5$ on the street, this is the time",
          "Neither has anything, but one must win."],
     # pair
-    2 : ["", "", "", "", "",
+    2 : ["", "", "", "", "", "",
          "Everyone on FAF is single, not you this time!",
          "Sometimes you don't need that much luck.",
          "Just enough work to win."],
@@ -50,7 +48,7 @@ cardCommentsOnMatchValue = {
          "Crushed.",
          "One for every limb you got. Unless you don't."],
     # three of a kind
-    4 : ["", "", "", "", "",
+    4 : ["", "", "",
          "At least you have threesomes on FAF.",
          "OOOOOHHH BABY A TRIPPLE",
          "A good result, isn't it."],
@@ -65,18 +63,18 @@ cardCommentsOnMatchValue = {
          "Suited up. Classy result!",
          "Easy win."],
     # full house
-    7 : ["", "",
+    7 : ["",
          "Boom.",
          "When you and your squad get together",
          "That wasnt a bluff."],
     # four of a kind
-    8 : ["", "",
+    8 : ["",
          "When a threesome just doesnt satisfy you anymore.",
          "Are you kidding me?",
          "Squad of quad to crush the pot"],
     # straight flush
     9 : ["AND THIS... IS TO GO EVEN FURTHER BEYOND... AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHH",
-         "ABSULUTE  MADMAN WOAH",
+         "ABSULUTE MADMAN WOAH",
          "Flush... crushed"],
     # royal straight flush
     10 : ["We forgot to include a message for this. It seemed just too unlikely."],
@@ -98,6 +96,7 @@ class PokerTimer(threading.Thread):
 
 class Poker:
     def __init__(self, bot, callbackf, chatpointsObj, chateventsObj, channel, maxpoints,
+                 gamecost=2.5, gamecostreceiver='#poker',
                  chatpointsDefaultKey='p', chatpointsReservedKey='chatpoker-reserved', chatpointsStatisticsKey='chatpoker'):
         self.lock = threading.Lock()
         self.chatpointsObj = chatpointsObj
@@ -111,13 +110,9 @@ class Poker:
         self.chatpointsDefaultKey = chatpointsDefaultKey
         self.chatpointsReservedKey = chatpointsReservedKey
         self.chatpointsStatisticsKey = chatpointsStatisticsKey
-        self.reset()
-
-    def debugPrint(self, text):
-        if useDebugPrint:
-            print(text.encode('ascii', errors='backslashreplace'))
-
-    def reset(self):
+        self.sponsoredPoints = 0
+        self.gamecost = gamecost / 100
+        self.gamecostreceiver = gamecostreceiver
         self.gameIsRunning = True
         self.players = {}
         self.playerOrder = []
@@ -133,6 +128,10 @@ class Poker:
         _, self.midCards = self.__pickRandomCards(5)
         self.currentStake = 0
         self.starttime = 0 # changed when first round begins
+
+    def debugPrint(self, text):
+        if useDebugPrint:
+            print(text.encode('ascii', errors='backslashreplace'))
 
     def getChannel(self):
         return self.channel
@@ -286,11 +285,11 @@ class Poker:
         self.gameIsRunning = False
         # score
         self.debugPrint("\nPOKER GAME OVER")
-        winnername, bestcardsvalue, stake = self.playerOrder[0], 0, 0
+        winnername, bestcardsvalue, stake = self.playerOrder[0], 0, self.sponsoredPoints
         winners = self.playerOrder
         for name in self.players.keys():
             stake += self.players[name]['totalpoints']
-        gamecosts = int(stake * GAMECOST / 100 + 0.5)
+        gamecosts = int(stake * self.gamecost + 0.4)
         if len(self.playerOrder) == 1:
             # just one remaining, don't show cards
             self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points!".format(**{
@@ -335,7 +334,7 @@ class Poker:
                 gamecosts = int(gamecosts / len(winners))+1
                 stringFormat['name'] = ", ".join(winners)
                 stringFormat['stake'] = str(stake)
-                self.__outputToChat(self.channel, "Poker game over! {name} win {stake} points each with {type}! {comment}".format(**stringFormat))
+                self.__outputToChat(self.channel, "Poker game over! {name} win {stake} points each with {type}! Table cards: [{midcards}] {comment}".format(**stringFormat))
         # transfer points
         losersDict = {}
         winnersDict = {}
@@ -348,11 +347,12 @@ class Poker:
                 self.chatpointsObj.transferByIds(winner, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
             # making up for game costs
             if name in winners:
-                self.debugPrint(name + ' winning, so tipping ' + str(gamecosts) + ' to ' + GAMECOSTRECEIVER)
+                self.debugPrint(name + ' winning ' + str(stake) + ', so tipping ' + str(gamecosts) + ' to ' + self.gamecostreceiver)
                 dct = {name : gamecosts}
-                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
-                self.chatpointsObj.transferByIds(GAMECOSTRECEIVER, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
+                self.chatpointsObj.transferByIds(self.gamecostreceiver, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
+                self.chatpointsObj.transferByIds(self.gamecostreceiver, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
                 winnersDict[name] = pointsLost
+                self.chatpointsObj.updateById(name, delta={self.chatpointsDefaultKey: self.sponsoredPoints/len(winners)}, allowNegative=False, partial=False)
             else:
                 losersDict[name] = pointsLost
             _, amount = self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, 999999999999, partial=True)
@@ -368,13 +368,17 @@ class Poker:
         self.callbackf({
             'channel' : self.channel,
             'starttime' : self.starttime,
+            'participants' : self.players.keys(),
         })
 
     def beginNewRound(self):
-        if self.knownCards >= len(self.midCards):
+        # all rounds played OR at most 1 player remaining OR all points spent
+        if self.knownCards >= len(self.midCards)\
+                or len(self.playerOrder) <= 1:
             self.__onGameEnd()
             return
-        if len(self.playerOrder) <= 1:
+        if self.players[self.playerOrder[0]]['totalpoints'] >= self.maxpoints:
+            self.__outputToChat(self.channel, "All remaining players went all in!")
             self.__onGameEnd()
             return
         #self.playerOrder = self.playerOrder[self.nextPlayer:] + self.playerOrder[:self.nextPlayer]
@@ -442,10 +446,11 @@ class Poker:
         nextPlayer = self.playerOrder[self.nextPlayer]
         missingPoints = self.__getNecessaryCallPoints(nextPlayer)
         if self.gameIsRunning:
-            self.__outputToChat(nextPlayer, "Your turn! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
+            self.__outputToChat(nextPlayer, "Your turn! Your cards: [{cards}]! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
                 'seconds' : self.timeoutSeconds,
                 'points' : str(self.maxpoints - self.players[nextPlayer].get('totalpoints',0)),
-                'missing' : str(missingPoints)
+                'missing' : str(missingPoints),
+                'cards' : self.__readableCardList(self.players[nextPlayer]['cards']),
             }))
         PokerTimer(self.timeoutFold, {
             'name' : nextPlayer,
@@ -458,6 +463,13 @@ class Poker:
 
     def __reservePlayerPoints(self, name):
         worked, _ = self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsDefaultKey, self.chatpointsReservedKey, self.maxpoints, partial=False)
+        return worked
+
+    def sponsor(self, name, points):
+        worked = self.chatpointsObj.updateById(name, delta={self.chatpointsDefaultKey : -points}, allowNegative=False, partial=False)
+        if worked:
+            self.debugPrint(name + " is sponsoring " + str(points) + " points")
+            self.sponsoredPoints += points
         return worked
 
     def signup(self, name):
@@ -573,7 +585,10 @@ class Poker:
         if self.gameIsRunning:
             return False
         if self.players.get(name, False):
-            self.__outputToChat(self.channel, name + "'s cards: " + self.__readableCardList(self.players[name]['cards']))
+            self.__outputToChat(self.channel, "{name}'s cards: [{cards}]".format(**{
+                'name' : name,
+                'cards' : self.__readableCardList(self.players[name]['cards'])
+            }))
         return True
 
     def isRunning(self):

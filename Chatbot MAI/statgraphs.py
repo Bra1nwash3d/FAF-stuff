@@ -150,3 +150,4 @@ if True:
     plotMost(chatpoints, "Chattips", by='chattip', firstElements=5, lastElements=5, ignoreChannels=False)
     plotMost(chatpoints, "Chatpoker", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=False)
     plotMost(chatpoints, "Chatroulette", by='chatroulette', firstElements=5, lastElements=5, ignoreChannels=True)
+    plotMost(chatpoints, "Chatpoker tourney", by="pokertourney", firstElements=5, lastElements=5, ignoreChannels=False)

@@ -154,17 +154,18 @@ class Points():
         """
 
         :param keyFrom:
-        :param keyTo:
+        :param keyTo: False/None if only deleting old values
         :param amount: will be partially transfered by default, as much as possible
         :param deleteOld: removes old key from the dict
         :return:
         """
         self.update_lock.acquire()
         for id in self.elements.keys():
-            p = min([amount, self.elements[id].get(keyFrom, 0)])
-            self.elements[id][keyTo] = self.elements[id].get(keyTo, 0) + p
-            self.elements[id][keyFrom] = 0
-            if deleteOld:
+            if keyTo:
+                p = min([amount, self.elements[id].get(keyFrom, 0)])
+                self.elements[id][keyTo] = self.elements[id].get(keyTo, 0) + p
+                self.elements[id][keyFrom] = 0
+            if deleteOld and self.elements[id].get(keyFrom, False):
                 del self.elements[id][keyFrom]
         self.update_lock.release()
 
