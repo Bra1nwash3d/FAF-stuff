@@ -278,6 +278,48 @@ class Plugin(object):
             channel = target
         self.bot.part(channel)
 
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def puppet(self, mask, target, args):
+        """Puppet
+
+            %%puppet <target> WORDS ...
+        """
+        if not (yield from self.__isNickservIdentified(mask.nick)):
+            return
+        t = args.get('<target>')
+        m = " ".join(args.get('WORDS'))
+        self.bot.privmsg(t, m)
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def puppeta(self, mask, target, args):
+        """Puppet /me
+
+            %%puppeta <target> WORDS ...
+        """
+        if not (yield from self.__isNickservIdentified(mask.nick)):
+            return
+        t = args.get('<target>')
+        m = " ".join(args.get('WORDS'))
+        print(t, m)
+        self.bot.action(t, m)
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def mode(self, mask, target, args):
+        """mode
+
+            %%mode <channel> <mode> <nick>
+        """
+        #if not (yield from self.__isNickservIdentified(mask.nick)):
+        #    return
+        self.bot.send_line('MODE {} {} {}'.format(
+            args.get('<channel>'),
+            args.get('<mode>'),
+            args.get('<nick>'),
+        ), nowait=True)
+
     @command(show_in_help_list=False, public=False)
     @asyncio.coroutine
     def list(self, mask, target, args):
@@ -972,15 +1014,17 @@ class Plugin(object):
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chatlvlpoints')
-        add, remove, name, points = args.get('add'), args.get('remove'), args.get('<name>'), args.get('<points>')
+        points, type = args.get('<points>'), args.get('<type>')
+        if not type:
+            type = 'p'
         try:
             points = int(points)
         except:
             self.bot.action(mask.nick, "Failed to send points! Are you sure you gave me a number?")
             points = 0
-        if remove:
+        if args.get('remove'):
             points *= -1
-        self.Chatpoints.updateById(name, delta={args.get('<type>', 'p') : points}, allowNegative=False, partial=True)
+        self.Chatpoints.updateById(args.get('<name>'), delta={type : points}, allowNegative=False, partial=True)
         self.bot.action(mask.nick, "Done!")
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatlvlpoints eof')
@@ -1084,6 +1128,19 @@ class Plugin(object):
             self.bot.privmsg(mask.nick, "Running tourneys: {}".format(", ".join([k for k in self.ChatgameTourneys.keys()])))
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatgamesadmin eof')
+
+    @command(show_in_help_list=False)
+    @asyncio.coroutine
+    def cp(self, mask, target, args):
+        """ %%cp join [<points>]
+            %%cp signup [<points>]
+            %%cp fold
+            %%cp call
+            %%cp raise <points>
+            %%cp start
+            %%cp reveal
+        """
+        yield from self.cpoker(mask, target, args)
 
     @command
     @asyncio.coroutine

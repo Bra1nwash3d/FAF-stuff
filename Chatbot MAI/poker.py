@@ -1,6 +1,7 @@
 import threading
 import random
 import asyncio
+
 from timed_input_accumulator import timedInputAccumulatorThread
 import time
 
@@ -104,7 +105,8 @@ class Poker:
         self.bot = bot
         self.maxpoints = maxpoints
         self.callbackf = callbackf
-        self.roundcosts = [0, 0, 0, int(maxpoints*1/20+0.5), int(maxpoints*1/20+0.5), int(maxpoints*1/10+0.5)]  # depending on number of known cards
+        simpleCosts = int(maxpoints*1/20+0.5)
+        self.roundcosts = [0, 0, simpleCosts, simpleCosts, simpleCosts, simpleCosts]  # depending on number of known cards
         self.channel = channel
         self.timeoutSeconds = TIMEOUT_SECONDS + min([TIMEOUT_SECONDS, int(self.maxpoints/25)])
         self.chatpointsDefaultKey = chatpointsDefaultKey
@@ -124,7 +126,7 @@ class Poker:
         for t in range(4):
             for v in range(2, 15):
                 self.remainingCards.append((t, v))
-        self.knownCards = 2
+        self.knownCards = 1
         _, self.midCards = self.__pickRandomCards(5)
         self.currentStake = 0
         self.starttime = 0 # changed when first round begins
@@ -289,7 +291,6 @@ class Poker:
         winners = self.playerOrder
         for name in self.players.keys():
             stake += self.players[name]['totalpoints']
-        gamecosts = int(stake * self.gamecost + 0.4)
         if len(self.playerOrder) == 1:
             # just one remaining, don't show cards
             self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points!".format(**{
@@ -338,24 +339,27 @@ class Poker:
         # transfer points
         losersDict = {}
         winnersDict = {}
+        # first, all players send their lost points
         for name in self.players.keys():
-            self.debugPrint("Handling player " + name + ", count of winners: " + str(len(winners)))
             pointsLost = self.players[name]['totalpoints']
-            dct = {name : pointsLost/len(winners)}
-            for winner in winners:
-                self.chatpointsObj.transferByIds(winner, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsReservedKey, allowNegative=False, partial=False)
-                self.chatpointsObj.transferByIds(winner, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
-            # making up for game costs
-            if name in winners:
-                self.debugPrint(name + ' winning ' + str(stake) + ', so tipping ' + str(gamecosts) + ' to ' + self.gamecostreceiver)
-                dct = {name : gamecosts}
-                self.chatpointsObj.transferByIds(self.gamecostreceiver, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
-                self.chatpointsObj.transferByIds(self.gamecostreceiver, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
-                winnersDict[name] = pointsLost
-                self.chatpointsObj.updateById(name, delta={self.chatpointsDefaultKey: self.sponsoredPoints/len(winners)}, allowNegative=False, partial=False)
-            else:
-                losersDict[name] = pointsLost
-            _, amount = self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, 999999999999, partial=True)
+            dct = {name : pointsLost}
+            self.debugPrint("Handling player " + name + ", sending " + str(pointsLost) + " points to gamecostreceiver")
+            self.chatpointsObj.transferByIds(self.gamecostreceiver, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsReservedKey, allowNegative=False, partial=False)
+            self.chatpointsObj.transferByIds(self.gamecostreceiver, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
+            # for stats
+            if name in winners: winnersDict[name] = pointsLost
+            else: losersDict[name] = pointsLost
+            # returning unused points
+            self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, 999999999999, partial=True)
+        # then the gamecostreceiver sends points back to the winners
+        gamecosts = int(stake * self.gamecost + 0.4)
+        stakepw_no_costs = (stake-gamecosts)/len(winners)
+        dct = {self.gamecostreceiver : stakepw_no_costs}
+        for name in winners:
+            self.debugPrint("Sending winnings to player " + name + ", amount:" + str(stakepw_no_costs))
+            self.chatpointsObj.transferByIds(name, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
+            self.chatpointsObj.transferByIds(name, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
+        # stats, informing players, callback
         self.chateventsObj.addEvent(self.chatpointsStatisticsKey, {
             'winners' : winnersDict,
             'stakepw' : stake,
@@ -371,7 +375,7 @@ class Poker:
             'participants' : self.players.keys(),
         })
 
-    def beginNewRound(self):
+    def beginNewRound(self, revealCards=True):
         # all rounds played OR at most 1 player remaining OR all points spent
         if self.knownCards >= len(self.midCards)\
                 or len(self.playerOrder) <= 1:
@@ -391,8 +395,11 @@ class Poker:
         for name in self.playerOrder:
             self.__updatePlayer(name, self.roundcosts[self.knownCards], wipeRoundPoints=True)
         pot = sum([v.get('totalpoints', 0) for v in self.players.values()])
-        self.__outputToChat(self.channel, "Beginning new round! {pot} points in the pot! Known cards: [{cards}], Order is: [{order}]".format(**{
-            "cards" : self.__readableCardList(self.midCards[:self.knownCards]),
+        cardString = "No revealed cards this turn, "
+        if revealCards:
+            cardString = "Known cards: [{}], ".format(self.__readableCardList(self.midCards[:self.knownCards]))
+        self.__outputToChat(self.channel, "Beginning new round! {pot} points in the pot! {cardstring}Order is: [{order}]".format(**{
+            "cardstring" : cardString,
             "order" : ", ".join(self.playerOrder),
             "pot" : str(pot),
         }))
@@ -402,7 +409,7 @@ class Poker:
             self.starttime = time.time()
             order = self.playerOrder + []
             self.playerOrder = random.sample(order, len(order))
-            self.beginNewRound()
+            self.beginNewRound(revealCards=False)
             self.nextPlayer = -1
             self.__informNext(playerDropped=False)
 
