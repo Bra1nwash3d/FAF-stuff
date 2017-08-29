@@ -293,6 +293,7 @@ class Poker:
         winningtype = -1
         for name in self.players.keys():
             stake += self.players[name]['totalpoints']
+        gamecosts = int(stake * self.gamecost + 0.4)
         if len(self.playerOrder) == 1:
             # just one remaining, don't show cards
             self.__outputToChat(self.channel, "Poker game over! {name} wins {stake} points!".format(**{
@@ -354,7 +355,6 @@ class Poker:
             # returning unused points
             self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, self.maxpoints-pointsLost, partial=True)
         # then the gamecostreceiver sends points back to the winners
-        gamecosts = int(stake * self.gamecost + 0.4)
         stakepw_incl_costs = (stake-gamecosts)/len(winners)
         dct = {self.gamecostreceiver : stakepw_incl_costs}
         for name in winners:
