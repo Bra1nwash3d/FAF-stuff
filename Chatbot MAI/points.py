@@ -183,6 +183,7 @@ class Points():
         for giverId in giverIdDict.keys():
             if self.updateById(giverId, delta={giverKey : -giverIdDict[giverId]}, allowNegative=allowNegative, partial=partial):
                 toTransfer += giverIdDict[giverId]
+        #print('transfering', toTransfer, 'to', receiverId, ', with key', receiverKey) # TODO remove
         self.updateById(receiverId, delta={receiverKey : toTransfer}, allowNegative=True)
 
     def transferPointsByIds(self, receiverId, giverIdDict):

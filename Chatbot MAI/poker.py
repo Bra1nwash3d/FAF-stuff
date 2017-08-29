@@ -130,6 +130,7 @@ class Poker:
         _, self.midCards = self.__pickRandomCards(5)
         self.currentStake = 0
         self.starttime = 0 # changed when first round begins
+        self.debugPrint("Init poker game with " + str(maxpoints) + " points max")
 
     def debugPrint(self, text):
         if useDebugPrint:
@@ -289,6 +290,7 @@ class Poker:
         self.debugPrint("\nPOKER GAME OVER")
         winnername, bestcardsvalue, stake = self.playerOrder[0], 0, self.sponsoredPoints
         winners = self.playerOrder
+        winningtype = -1
         for name in self.players.keys():
             stake += self.players[name]['totalpoints']
         if len(self.playerOrder) == 1:
@@ -350,13 +352,13 @@ class Poker:
             if name in winners: winnersDict[name] = pointsLost
             else: losersDict[name] = pointsLost
             # returning unused points
-            self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, 999999999999, partial=True)
+            self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, self.maxpoints-pointsLost, partial=True)
         # then the gamecostreceiver sends points back to the winners
         gamecosts = int(stake * self.gamecost + 0.4)
-        stakepw_no_costs = (stake-gamecosts)/len(winners)
-        dct = {self.gamecostreceiver : stakepw_no_costs}
+        stakepw_incl_costs = (stake-gamecosts)/len(winners)
+        dct = {self.gamecostreceiver : stakepw_incl_costs}
         for name in winners:
-            self.debugPrint("Sending winnings to player " + name + ", amount:" + str(stakepw_no_costs))
+            self.debugPrint("Sending winnings to player " + name + ", amount:" + str(stakepw_incl_costs))
             self.chatpointsObj.transferByIds(name, dct, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=False)
             self.chatpointsObj.transferByIds(name, dct, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
         # stats, informing players, callback
@@ -366,6 +368,7 @@ class Poker:
             'losers' : losersDict,
             'gamecostspw' : gamecosts,
             'channel' : self.channel,
+            'winningtype' : winningtype,
         })
         for name in self.players.keys():
             self.__outputToChat(name, "Poker game over! You have {} points now!".format(format(self.chatpointsObj.getById(name).get(self.chatpointsDefaultKey, 0), '.1f')))
