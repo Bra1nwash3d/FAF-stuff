@@ -185,6 +185,7 @@ class Points():
                 toTransfer += giverIdDict[giverId]
         #print('transfering', toTransfer, 'to', receiverId, ', with key', receiverKey) # TODO remove
         self.updateById(receiverId, delta={receiverKey : toTransfer}, allowNegative=True)
+        return toTransfer
 
     def transferPointsByIds(self, receiverId, giverIdDict):
         return self.transferByIds(receiverId, giverIdDict)

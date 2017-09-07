@@ -47,6 +47,7 @@ CHATLVLWORDS = {}
 POINTS_PER_CHATLVL = 5
 CHATLVL_TOPPLAYERS = {}
 CHATPOINTS_REMOVAL_IF_KICKED = 100
+CHATPOINTS_DEFAULT_TOURNEY_START = 1000
 
 useDebugPrint = False
 useLSTM = False
@@ -209,7 +210,7 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatgames-'+MAIN_CHANNEL]:
+        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -869,7 +870,7 @@ class Plugin(object):
         ladder = []
         announceString = ""
         individualString = ""
-        default = (not tip) and (not roulette)
+        default = (not tip) and (not roulette) and (not poker)
         if tip:
             ladder = self.Chatpoints.getSortedBy(by='chattip', reversed=(not rev))
             announceString = "Top tip receivers (received-sent): {list}"
@@ -923,8 +924,10 @@ class Plugin(object):
         """ The names of the top ladder warriors
 
             %%chattourney [<channel>]
+            %%chattourney <channel> join
+            %%chattourney <channel> leave
         """
-        channel = args.get('<channel>')
+        channel, join, leave = args.get('<channel>'), args.get('join'), args.get('leave')
         # use ladder spam protect key for now i guess
         if self.spam_protect('chatladder', mask, target, args, specialSpamProtect='chatladder'):
             return
@@ -939,28 +942,41 @@ class Plugin(object):
             if not tourneydata:
                 self.bot.privmsg(target, "No tourney is going on there!")
                 return
-            ladder = self.Chatpoints.getSortedByMultiple(byPositive=[tourneydata['pointkey'], tourneydata['pointreservedkey']], reversed=True)
-            ladderstringsIn = []
-            ladderstringsOut = []
-            for name, points in ladder:
-                if points <= 0:
-                    break
-                elif points <= tourneydata['minpoints']:
-                    ladderstringsOut.append("{name}".format(**{
-                        'name' : self.getUnpingableName(name),
-                        'points' : format(points, '.1f'),
-                    }))
+            if join:
+                if not tourneydata.get('joinable', False):
+                    self.bot.privmsg(channel, "It's not possible to join the tourney anymore!")
+                elif self.__tourneyAdd(mask.nick, channel):
+                    self.bot.privmsg(channel, "{} joined the tourney!".format(mask.nick))
                 else:
-                    ladderstringsIn.append("{name} ({points}p)".format(**{
-                        'name' : self.getUnpingableName(name),
-                        'points' : format(points, '.1f'),
-                    }))
-            self.bot.privmsg(target, "A {type} tourney is running, currently requires {points}p per game, participants: [{participants}], out: [{out}]".format(**{
-                'points' : tourneydata['minpoints'],
-                'type' : tourneydata.get('type', ''),
-                'participants' : ', '.join(ladderstringsIn),
-                'out' : ', '.join(ladderstringsOut),
-            }))
+                    self.bot.privmsg(mask.nick, "Joining failed! You're probably already signed up!")
+            elif leave:
+                if self.__tourneyRemove(mask.nick, channel):
+                    self.bot.privmsg(channel, "{} left the tourney!".format(mask.nick))
+                else:
+                    self.bot.privmsg(mask.nick, "Leaving failed! Are you even in the tourney?")
+            else:
+                ladder = self.Chatpoints.getSortedByMultiple(byPositive=[tourneydata['pointkey'], tourneydata['pointreservedkey']], reversed=True)
+                ladderstringsIn = []
+                ladderstringsOut = []
+                for name, points in ladder:
+                    if points <= 0:
+                        break
+                    elif points <= tourneydata['minpoints']:
+                        ladderstringsOut.append("{name}".format(**{
+                            'name' : self.getUnpingableName(name),
+                            'points' : format(points, '.1f'),
+                        }))
+                    else:
+                        ladderstringsIn.append("{name} ({points}p)".format(**{
+                            'name' : self.getUnpingableName(name),
+                            'points' : format(points, '.1f'),
+                        }))
+                self.bot.privmsg(target, "A {type} tourney is running, currently requires {points}p per game, participants: [{participants}], out: [{out}]".format(**{
+                    'points' : tourneydata['minpoints'],
+                    'type' : tourneydata.get('type', ''),
+                    'participants' : ', '.join(ladderstringsIn),
+                    'out' : ', '.join(ladderstringsOut),
+                }))
         pass
 
     @command()
@@ -1060,6 +1076,25 @@ class Plugin(object):
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatslap eof')
 
+    def __tourneyAdd(self, id, channel):
+        tourneydata = self.ChatgameTourneys.get(channel, False)
+        if tourneydata:
+            if self.ChatgameTourneys[channel]['players'].get(id, False):
+                return False
+            self.Chatpoints.updateById(id, data={tourneydata['pointkey']: CHATPOINTS_DEFAULT_TOURNEY_START})
+            self.ChatgameTourneys[channel]['players'][id] = 1
+            return True
+        return False
+
+    def __tourneyRemove(self, id, channel):
+        tourneydata = self.ChatgameTourneys.get(channel, False)
+        if tourneydata:
+            if self.ChatgameTourneys[channel]['players'].get(id, False):
+                del self.ChatgameTourneys[channel]['players'][id]
+                self.Chatpoints.updateById(id, delta={tourneydata['pointkey']: -999999}, allowNegative=False, partial=True)
+                return True
+        return False
+
     @command(permission='admin', show_in_help_list=False, public=False)
     def chatgamesadmin(self, mask, target, args):
         """ To restore reserved points
@@ -1072,7 +1107,7 @@ class Plugin(object):
             %%chatgamesadmin tourney <channel> remove <name>
             %%chatgamesadmin tourney <channel> end
         """
-        global CHATLVL_COMMANDLOCK
+        global CHATLVL_COMMANDLOCK, CHATPOINTS_DEFAULT_TOURNEY_START
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chatgamesadmin')
         restore, roulette, poker = args.get('restore'), args.get('roulette'), args.get('poker')
@@ -1089,6 +1124,7 @@ class Plugin(object):
             if start and poker:
                 pointkey = 'pokertourney-'+channel
                 self.ChatgameTourneys[channel] = {
+                    'joinable' : True,
                     'minpoints' : 200,
                     'minpincreasemult' : 1.02,
                     'minpincreaseadd' : 10,
@@ -1104,13 +1140,10 @@ class Plugin(object):
             tourneydata = self.ChatgameTourneys.get(channel, False)
             if tourneydata:
                 if add:
-                    self.Chatpoints.updateById(name, data={tourneydata['pointkey']: 1000})
+                    self.__tourneyAdd(name, channel)
                     self.bot.privmsg(mask.nick, "Gave {} 1000 points!".format(name))
-                    self.ChatgameTourneys[channel]['players'][name] = 1
                 elif remove:
-                    if self.ChatgameTourneys[channel]['players'].get(name, False):
-                        del self.ChatgameTourneys[channel]['players'][name]
-                        self.Chatpoints.updateById(name, delta={tourneydata['pointkey']: -999999}, allowNegative=False, partial=True)
+                    if self.__tourneyRemove(name, channel):
                         self.bot.privmsg(mask.nick, "Removed {}!".format(name))
                     else:
                         self.bot.privmsg(mask.nick, "{} is not in the tourney!".format(name))
@@ -1129,6 +1162,26 @@ class Plugin(object):
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatgamesadmin eof')
 
+    def __textToPokerCommand(self, text):
+        # TODO raises
+        text = text.lower()
+        for word in ["join"]:
+            if word in text:
+                return {'join' : True}
+        for word in ["fold", "dansgame"]:
+            if word in text:
+                return {'fold' : True}
+        for word in ["call"]:
+            if word in text:
+                return {'call' : True}
+        for word in ["start"]:
+            if word in text:
+                return {'start' : True}
+        for word in ["reveal", "show"]:
+            if word in text:
+                return {'reveal' : True}
+        return {}
+
     @command(show_in_help_list=False)
     @asyncio.coroutine
     def cp(self, mask, target, args):
@@ -1139,6 +1192,7 @@ class Plugin(object):
             %%cp raise <points>
             %%cp start
             %%cp reveal
+            %%cp TEXT ...
         """
         yield from self.cpoker(mask, target, args)
 
@@ -1152,21 +1206,25 @@ class Plugin(object):
             %%cpoker raise <points>
             %%cpoker start
             %%cpoker reveal
+            %%cpoker TEXT ...
         """
         global CHATLVL_COMMANDLOCK, MAIN_CHANNEL, POKER_CHANNEL
+        """
         if (target == MAIN_CHANNEL):
             self.bot.privmsg(mask.nick, "Poker is heavily limited in {main} atm, due to the spam! ''!join {channel}'' to play with others!".format(**{
                 "main" : MAIN_CHANNEL,
                 "channel": POKER_CHANNEL,
             }))
-            self.debugPrint('commandlock release chatpoker spam')
             return
+        """
         CHATLVL_COMMANDLOCK.acquire()
         if self.chatroulettethreads.get(target, False):
             CHATLVL_COMMANDLOCK.release()
             return "Another game is in progress!"
         self.debugPrint('commandlock acquire chatpoker')
         points = args.get('<points>')
+        textcommands = self.__textToPokerCommand(" ".join(args.get('TEXT')))
+        createdGame = False
         if points:
             try:
                 points = abs(int(points))
@@ -1176,7 +1234,7 @@ class Plugin(object):
                 return
         else:
             points = 50
-        if args.get('reveal') and self.ChatpokerPrev.get(target, False):
+        if (args.get('reveal') or textcommands.get('reveal')) and self.ChatpokerPrev.get(target, False):
             self.ChatpokerPrev[target].reveal(mask.nick)
             CHATLVL_COMMANDLOCK.release()
             return
@@ -1187,9 +1245,11 @@ class Plugin(object):
         if not self.Chatpoker.get(target, False):
             tourneydata = self.ChatgameTourneys.get(target, False)
             if tourneydata:
-                self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target,
+                self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents,
+                                               target,
                                                tourneydata['minpoints'],
                                                gamecost = 0,
+                                               gamecostreceiver=target,
                                                chatpointsDefaultKey=tourneydata['pointkey'],
                                                chatpointsReservedKey=tourneydata['pointreservedkey'],
                                                chatpointsStatisticsKey=tourneydata['statisticskey'])
@@ -1199,14 +1259,19 @@ class Plugin(object):
             else:
                 points = max([points, 20])
                 self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, points)
-        if args.get('start'):
+            createdGame = True
+        if args.get('start') or textcommands.get('start'):
             self.Chatpoker[target].beginFirstRound(mask.nick)
-        if args.get('call'):
+        if args.get('call') or textcommands.get('call'):
             self.Chatpoker[target].call(mask.nick)
-        if args.get('fold'):
+        if args.get('fold') or textcommands.get('fold'):
             self.Chatpoker[target].fold(mask.nick)
-        if args.get('join') or args.get('signup'):
-            self.Chatpoker[target].signup(mask.nick)
+        if args.get('join') or args.get('signup') or textcommands.get('join'):
+            worked = self.Chatpoker[target].signup(mask.nick)
+            if createdGame and (not worked):
+                self.Chatpoker[target] = False
+                del self.Chatpoker[target]
+                self.bot.privmsg(target, "Removed poker game again.")
         if args.get('raise'):
             self.Chatpoker[target].raise_(mask.nick, points)
         CHATLVL_COMMANDLOCK.release()
@@ -1218,6 +1283,7 @@ class Plugin(object):
         # in case of tourney, update ante punishments
         tourneydata = self.ChatgameTourneys.get(channel, False)
         if tourneydata:
+            self.ChatgameTourneys[channel]['joinable'] = False
             for name in tourneydata['players'].keys():
                 if name in args.get('participants'): self.ChatgameTourneys[channel]['players'][name] = 1
                 else: self.ChatgameTourneys[channel]['players'][name] = self.ChatgameTourneys[channel]['players'].get(name, 0) + 1
@@ -1517,11 +1583,11 @@ class Plugin(object):
 
     @command(permission='admin', public=False)
     @asyncio.coroutine
-    def chatlvlchannels_(self, mask, target, args):
+    def chatlvlchannels(self, mask, target, args):
         """Adds/removes a given channel to those which points can be farmed in
-            %%chatlvlchannels_ get
-            %%chatlvlchannels_ add TEXT ...
-            %%chatlvlchannels_ del <ID>
+            %%chatlvlchannels get
+            %%chatlvlchannels add TEXT ...
+            %%chatlvlchannels del <ID>
         """
         return self.__genericCommandManage(mask, target, args, ['chatlvlchannels'])
 

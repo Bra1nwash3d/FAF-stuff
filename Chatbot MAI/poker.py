@@ -108,6 +108,7 @@ class Poker:
         simpleCosts = int(maxpoints*1/20+0.5)
         self.roundcosts = [0, 0, simpleCosts, simpleCosts, simpleCosts, simpleCosts]  # depending on number of known cards
         self.channel = channel
+        self.maxWaitingTime = 300 # for participants
         self.timeoutSeconds = TIMEOUT_SECONDS + min([TIMEOUT_SECONDS, int(self.maxpoints/25)])
         self.chatpointsDefaultKey = chatpointsDefaultKey
         self.chatpointsReservedKey = chatpointsReservedKey
@@ -116,9 +117,11 @@ class Poker:
         self.gamecost = gamecost / 100
         self.gamecostreceiver = gamecostreceiver
         self.gameIsRunning = True
+        self.gameIsStarted = False
         self.players = {}
         self.playerOrder = []
         self.nextPlayer = 0
+        self.continuousCalls = 0
         self.playersActionTaken = self.nextPlayer # for timer
         self.acceptingNewPlayers = True
         self.highestPoints = 0
@@ -131,6 +134,10 @@ class Poker:
         self.currentStake = 0
         self.starttime = 0 # changed when first round begins
         self.debugPrint("Init poker game with " + str(maxpoints) + " points max")
+        PokerTimer(self.timeoutEnd, {}, self.maxWaitingTime).start()
+
+    def timeoutEnd(self, args):
+        self.beginFirstRound("", forceStart=True)
 
     def debugPrint(self, text):
         if useDebugPrint:
@@ -286,6 +293,8 @@ class Poker:
         if not self.gameIsRunning:
             return
         self.gameIsRunning = False
+        if len(self.playerOrder) == 0:
+            return
         # score
         self.debugPrint("\nPOKER GAME OVER")
         winnername, bestcardsvalue, stake = self.playerOrder[0], 0, self.sponsoredPoints
@@ -407,15 +416,6 @@ class Poker:
             "pot" : str(pot),
         }))
 
-    def beginFirstRound(self, name):
-        if (self.knownCards < 3) and (name in self.playerOrder):
-            self.starttime = time.time()
-            order = self.playerOrder + []
-            self.playerOrder = random.sample(order, len(order))
-            self.beginNewRound(revealCards=False)
-            self.nextPlayer = -1
-            self.__informNext(playerDropped=False)
-
     def __isPlayersTurn(self, name):
         if not self.gameIsRunning:
             self.__outputToChat(name, "The game is over!")
@@ -456,7 +456,8 @@ class Poker:
         nextPlayer = self.playerOrder[self.nextPlayer]
         missingPoints = self.__getNecessaryCallPoints(nextPlayer)
         if self.gameIsRunning:
-            self.__outputToChat(nextPlayer, "Your turn! Your cards: [{cards}]! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
+            self.__outputToChat(nextPlayer, "Your turn in {channel}! Your cards: [{cards}]! {missing} required to call! You have {points} left to bet! Timeout in {seconds} seconds!".format(**{
+                'channel' : self.channel,
                 'seconds' : self.timeoutSeconds,
                 'points' : str(self.maxpoints - self.players[nextPlayer].get('totalpoints',0)),
                 'missing' : str(missingPoints),
@@ -476,11 +477,23 @@ class Poker:
         return worked
 
     def sponsor(self, name, points):
-        worked = self.chatpointsObj.updateById(name, delta={self.chatpointsDefaultKey : -points}, allowNegative=False, partial=False)
-        if worked:
-            self.debugPrint(name + " is sponsoring " + str(points) + " points")
-            self.sponsoredPoints += points
-        return worked
+        tp = self.chatpointsObj.transferByIds(self.gamecostreceiver, {name : points}, receiverKey=self.chatpointsDefaultKey, giverKey=self.chatpointsDefaultKey, allowNegative=False, partial=True)
+        self.chatpointsObj.transferByIds(self.gamecostreceiver, {name : tp}, receiverKey=self.chatpointsStatisticsKey, giverKey=self.chatpointsStatisticsKey, allowNegative=True, partial=False)
+        self.debugPrint(name + " is sponsoring " + str(tp) + " points")
+        self.sponsoredPoints += tp
+        return tp > 0
+
+    def beginFirstRound(self, name, forceStart=False):
+        self.lock.acquire()
+        if (not self.gameIsStarted) and ((name in self.playerOrder) or forceStart):
+            self.gameIsStarted = True
+            self.starttime = time.time()
+            order = self.playerOrder + []
+            self.playerOrder = random.sample(order, len(order))
+            self.beginNewRound(revealCards=False)
+            self.nextPlayer = -1
+            self.__informNext(playerDropped=False)
+        self.lock.release()
 
     def signup(self, name):
         # intended to have only one point value inserted here

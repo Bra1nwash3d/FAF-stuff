@@ -1,4 +1,5 @@
 import json
+import os
 import numpy as np
 from points import Points
 from events import Events
@@ -132,10 +133,16 @@ path = '/backups/reset/1/1503159466'
 path = '/backups/reset/2/1503403069'
 path = ""
 chatevents = Events("." + path + "/chatevents.json")
+allchatevents = Events("." + path + "/chatevents.json")
+for dirname, dirnames, filenames in os.walk('./backups/reset/'):
+    print(dirnames)
+    for filename in filenames:
+        if filename == 'chatevents.json':
+            print(dirname+'/'+filename)
+            allchatevents.addEventFile(dirname+'/'+filename)
 chatpoints = Points("." + path + "/chatlevel.json")
-#chatevents = Events("./chatevents.json")
-#chatpoints = Points("./chatlevel.json")
 chatpoints.save()
+
 #plotChattipsForName(chatevents, 'jarikboygangela')
 #plotChattipsForName(chatevents, 'MAI')
 #plotMost(chatpoints, "Chatroulette ", by='chatroulette', firstElements=6, lastElements=6, ignoreChannels=True, average=True)
@@ -151,3 +158,10 @@ if True:
     plotMost(chatpoints, "Chatpoker", by='chatpoker', firstElements=5, lastElements=5, ignoreChannels=False)
     plotMost(chatpoints, "Chatroulette", by='chatroulette', firstElements=5, lastElements=5, ignoreChannels=True)
     plotMost(chatpoints, "Chatpoker tourney", by="pokertourney", firstElements=5, lastElements=5, ignoreChannels=False)
+    # of all events
+    plotListAsHist(getFormattedList(getRouletteData(allchatevents), firstElements=5, lastElements=5, groupRest=True, average=False, sort=True), "Chatroulette data, all epochs")
+    plotListAsHist(getFormattedList(getRouletteData(chatevents), firstElements=5, lastElements=5, groupRest=True, average=False, sort=True), "Chatroulette data, current epoch")
+    plotListAsHist(getFormattedList(getPokerData(allchatevents), firstElements=5, lastElements=5, groupRest=True, average=False, sort=True), "Chatpoker data, all epochs")
+    plotListAsHist(getFormattedList(getPokerData(chatevents), firstElements=5, lastElements=5, groupRest=True, average=False, sort=True), "Chatpoker data, current epoch")
+
+

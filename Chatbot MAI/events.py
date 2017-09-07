@@ -14,6 +14,20 @@ class Events():
         except:
             pass
 
+    def addEventFile(self, jsonpath):
+        try:
+            with open(jsonpath, 'r+') as file:
+                newevents = json.load(file)
+                for key in newevents.keys():
+                    if not self.events.get(key):
+                        self.events[key] = []
+                    self.events[key].extend(newevents[key])
+                    print('extended', key, 'by', len(newevents[key]), 'elements')
+            return True
+        except:
+            pass
+        return False
+
     def save(self, path=False):
         self.lock.acquire()
         if not path:
