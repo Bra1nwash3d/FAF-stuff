@@ -33,6 +33,19 @@ cardEvalToStringType = {
     9 : 'a straight flush',
     10 : 'a Royal Straight Flush',
 }
+cardSimpleEvalToNumber = {
+    "fold" : -1,
+    "highest" : 1,
+    "2" : 2,
+    "2pair" : 3,
+    "3" : 4,
+    "straight" : 5,
+    "flush" : 6,
+    "fh" : 7,
+    "4" : 8,
+    "sflush" : 9,
+    "rsflush" : 10,
+}
 cardCommentsOnMatchValue = {
     # highest card
     1 : ["", "", "", "", "", "", "",
@@ -96,6 +109,10 @@ class PokerTimer(threading.Thread):
 
 
 class Poker:
+    @staticmethod
+    def getSimpleCardEvalToNumber():
+        return cardSimpleEvalToNumber
+
     def __init__(self, bot, callbackf, chatpointsObj, chateventsObj, channel, maxpoints,
                  gamecost=2.0, gamecostreceiver='#poker',
                  chatpointsDefaultKey='p', chatpointsReservedKey='chatpoker-reserved', chatpointsStatisticsKey='chatpoker'):

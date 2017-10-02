@@ -102,7 +102,7 @@ class Events():
         }
 
     # TODO
-    def getFormattedPokerData(self, key, filtername=False, minparticipants=2):
+    def getFormattedPokerData(self, key, filtername=False, minparticipants=2, winningtype=False):
         eventdata = self.getData(key)
         if filtername:
             i = 0
@@ -115,6 +115,12 @@ class Events():
             while i < len(eventdata):
                 game = eventdata[i]
                 if (len(game['losers']) + len(game['winners'])) >= minparticipants: i += 1
+                else: eventdata.pop(i)
+        if winningtype:
+            i = 0
+            while i < len(eventdata):
+                game = eventdata[i]
+                if (game['winningtype'] == winningtype): i += 1
                 else: eventdata.pop(i)
         if len(eventdata) == 0:
             return {}

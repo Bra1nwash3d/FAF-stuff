@@ -1007,16 +1007,16 @@ class Plugin(object):
             %%chatstats roulette minplayers <playercount>
             %%chatstats poker [<name>]
             %%chatstats poker minplayers <playercount>
+            %%chatstats poker winningtype <fold/highest/2/2pair/3/straight/flush/fh/4/sflush/rsflush>
         """
         roulette, poker, minplayers, name, playercount = args.get('roulette'), args.get('poker'), args.get('minplayers'), args.get('<name>'), args.get('<playercount>')
         channel = target
         if self.spam_protect('chatstats', mask, target, args, specialSpamProtect='chatstats'):
             channel = mask.nick
-        if playercount:
-            try:
-                playercount = int(playercount)
-            except:
-                playercount = 2
+        try:
+            playercount = int(playercount)
+        except:
+            playercount = 2
         if roulette:
             data = self.Chatevents.getFormattedRouletteData('chatroulette', name, playercount)
             if len(data) < 1:
@@ -1028,7 +1028,10 @@ class Plugin(object):
                                     "highest ROI game: (R={roiwin}; I={roibet}, ratio={roiratio}) by {roiwinner}".format(**data))
             return
         if poker:
-            data = self.Chatevents.getFormattedPokerData('chatpoker', name, playercount)
+            winningtype = False
+            if args.get('winningtype'):
+                winningtype = Poker.getSimpleCardEvalToNumber().get(args.get('<fold/highest/2/2pair/3/straight/flush/fh/4/sflush/rsflush>'), False)
+            data = self.Chatevents.getFormattedPokerData('chatpoker', name, playercount, winningtype)
             if len(data) < 1:
                 return "There are no games to talk about!"
             data['hwinners'] = ", ".join([self.getUnpingableName(self.Chatpoints.getById(name)['n']) for name in data['hwinners']])
