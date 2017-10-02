@@ -97,7 +97,7 @@ class PokerTimer(threading.Thread):
 
 class Poker:
     def __init__(self, bot, callbackf, chatpointsObj, chateventsObj, channel, maxpoints,
-                 gamecost=2.5, gamecostreceiver='#poker',
+                 gamecost=2.0, gamecostreceiver='#poker',
                  chatpointsDefaultKey='p', chatpointsReservedKey='chatpoker-reserved', chatpointsStatisticsKey='chatpoker'):
         self.lock = threading.Lock()
         self.chatpointsObj = chatpointsObj
@@ -105,8 +105,8 @@ class Poker:
         self.bot = bot
         self.maxpoints = maxpoints
         self.callbackf = callbackf
-        simpleCosts = int(maxpoints*1/20+0.5)
-        self.roundcosts = [0, 0, simpleCosts, simpleCosts, simpleCosts, simpleCosts]  # depending on number of known cards
+        p3 = int(maxpoints*3/100+0.5)
+        self.roundcosts = [0, 0, int(maxpoints*1/100+0.5), p3, p3, p3]  # depending on number of known cards
         self.channel = channel
         self.maxWaitingTime = 300 # for participants
         self.timeoutSeconds = TIMEOUT_SECONDS + min([TIMEOUT_SECONDS, int(self.maxpoints/25)])
@@ -364,7 +364,7 @@ class Poker:
             # returning unused points
             self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsReservedKey, self.chatpointsDefaultKey, self.maxpoints-pointsLost, partial=True)
         # then the gamecostreceiver sends points back to the winners
-        stakepw_incl_costs = (stake-gamecosts)/len(winners)
+        stakepw_incl_costs = stake-gamecosts
         dct = {self.gamecostreceiver : stakepw_incl_costs}
         for name in winners:
             self.debugPrint("Sending winnings to player " + name + ", amount:" + str(stakepw_incl_costs))
@@ -443,7 +443,7 @@ class Poker:
         return True, points
 
     def __informNext(self, playerDropped=False):
-        if len(self.playerOrder) == 1:
+        if len(self.playerOrder) <= 1:
             self.__onGameEnd()
             return
         if not playerDropped:

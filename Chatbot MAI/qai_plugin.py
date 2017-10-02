@@ -128,7 +128,8 @@ class Plugin(object):
             return
         if channel.startswith("#") and not sender.nick in IGNOREDUSERS.values():
             self.update_chatlevels(sender, channel, msg)
-            self.AeolusMarkov.addLine(msg)
+            if channel == MAIN_CHANNEL:
+                self.AeolusMarkov.addLine(msg)
 
     @irc3.event(irc3.rfc.KICK)
     @asyncio.coroutine
@@ -618,6 +619,24 @@ class Plugin(object):
         if self.spam_protect('changelog', mask, target, args, specialSpamProtect='changelog'):
             return
         self.bot.privmsg(target, self.ChangelogMarkov.forwardSentence(False, 30, target, includeWord=True))
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def chainadmin(self, mask, target, args):
+        """ Manage chains
+
+            %%chainadmin del <word>
+            %%chainadmin disable <word>
+        """
+        if not (yield from self.__isNickservIdentified(mask.nick)):
+            return
+        if args.get("del"):
+            done = self.AeolusMarkov.delWord(args.get("<word>", ""))
+            if done: return "Deleted"
+            return "Failed to delete"
+        if args.get("disable"):
+            self.AeolusMarkov.disableWord(args.get("<word>", ""))
+            return "Disabled the word."
 
     @command()
     @asyncio.coroutine
@@ -1194,7 +1213,7 @@ class Plugin(object):
             %%cp reveal
             %%cp TEXT ...
         """
-        yield from self.cpoker(mask, target, args)
+        return (yield from self.cpoker(mask, target, args))
 
     @command
     @asyncio.coroutine
@@ -1228,10 +1247,10 @@ class Plugin(object):
         if points:
             try:
                 points = abs(int(points))
-            except Exception:
+            except:
                 CHATLVL_COMMANDLOCK.release()
                 self.debugPrint('commandlock release chatpoker 2')
-                return
+                return "Failed setting points! Are you sure you gave me a number?"
         else:
             points = 50
         if (args.get('reveal') or textcommands.get('reveal')) and self.ChatpokerPrev.get(target, False):
@@ -1659,7 +1678,7 @@ class Plugin(object):
             %%hidden
         """
         words = ["join", "leave", "files", "cd", "savedb", "twitchjoin", "twitchleave",\
-                 "twitchmsg", "list", "ignore", "cdprivilege",\
+                 "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin",\
                  "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart", "chatgamesadmin", "chatlvlchannels_", "chattipadmin"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         #for word in words:

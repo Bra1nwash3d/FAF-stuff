@@ -179,6 +179,8 @@ class Markov():
             return False
         if "http://" in word or "https://" in word:
             return False
+        if self.markovwords.get(word, {}).get('disabled', False):
+            return False
         return True
 
     def chainLength(self):
@@ -187,4 +189,16 @@ class Markov():
                 return i
         return MAXCHAINLENGTH
 
+    def getWord(self, word):
+        return self.markovwords.get(word)
 
+    def delWord(self, word):
+        # does not prevent the word from appearing at start/end of a sentence, only to chain further
+        if self.markovwords.get(word):
+            del self.markovwords[word]
+            return True
+        return False
+
+    def disableWord(self, word):
+        wordGroup = self.markovwords.get(word, False)
+        wordGroup['disabled'] = True
