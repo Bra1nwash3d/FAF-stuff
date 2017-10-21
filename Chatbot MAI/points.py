@@ -165,7 +165,7 @@ class Points():
                 p = min([amount, self.elements[id].get(keyFrom, 0)])
                 self.elements[id][keyTo] = self.elements[id].get(keyTo, 0) + p
                 self.elements[id][keyFrom] = 0
-            if deleteOld and self.elements[id].get(keyFrom, False):
+            if deleteOld and self.elements[id].get(keyFrom, 0) <= 0:
                 del self.elements[id][keyFrom]
         self.update_lock.release()
 

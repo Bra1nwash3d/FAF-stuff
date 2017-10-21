@@ -23,6 +23,7 @@ from markov import Markov
 from points import Points
 from events import Events
 from poker import Poker
+from bet import Bet
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
@@ -128,8 +129,8 @@ class Plugin(object):
             return
         if channel.startswith("#") and not sender.nick in IGNOREDUSERS.values():
             self.update_chatlevels(sender, channel, msg)
-            if channel == MAIN_CHANNEL:
-                self.AeolusMarkov.addLine(msg)
+#            if channel == MAIN_CHANNEL:
+#                self.AeolusMarkov.addLine(msg)
 
     @irc3.event(irc3.rfc.KICK)
     @asyncio.coroutine
@@ -211,7 +212,7 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'rearrange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames']:
+        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatbet']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -224,12 +225,17 @@ class Plugin(object):
         CDPRIVILEDGEDUSERS = self.__dbGet(['cdprivilege'])
         CHATLVL_EPOCH = self.__dbGet(['chatlvlmisc', 'epoch'])
         self.AeolusMarkov = Markov(self, self.bot.config.get('markovwordsstorage_chat', './dbmarkovChat.json'))
+        print('loaded aeolus markov, info:', self.AeolusMarkov.getInfo())
         self.ChangelogMarkov = Markov(self, self.bot.config.get('markovwordsstorage_changelog', './dbmarkovChangelogs.json'))
+        print('loaded changelog markov, info:', self.ChangelogMarkov.getInfo())
+        self.GymMarkov = Markov(self, self.bot.config.get('markovwordsstorage_gym', './dbmarkovGym.json'))
+        print('loaded gym markov, info:', self.ChangelogMarkov.getInfo())
         self.Chatpoints = Points(self.bot.config.get('chatlevelstorage', './chatlevel.json'))
         self.Chatevents = Events(self.bot.config.get('chateventstorage', './chatevents.json'))
         self.Chatpoker = {}
         self.ChatpokerPrev = {}
         self.ChatgameTourneys = {}
+        self.Chatbets = {}
 
         try:
             if self.chatroulettethreads:
@@ -413,12 +419,12 @@ class Plugin(object):
         """ To read files, no abuse please
 
             %%files get
-            %%files parse log <chat/changelog> <filename>
-            %%files parse raw <chat/changelog> <filename>
+            %%files parse log <chat/changelog/gym> <filename>
+            %%files parse raw <chat/changelog/gym> <filename>
         """
         if not (yield from self.__isNickservIdentified(mask.nick)):
             return
-        get, parse, log, raw, filename, chatchangelog = args.get('get'), args.get('parse'), args.get('log'), args.get('raw'), args.get('<filename>'), args.get('<chat/changelog>')
+        get, parse, log, raw, filename, chatchangelog = args.get('get'), args.get('parse'), args.get('log'), args.get('raw'), args.get('<filename>'), args.get('<chat/changelog/gym>')
         if get:
             for dirname, dirnames, filenames in os.walk('./files'):
                 for filename in filenames:
@@ -433,8 +439,10 @@ class Plugin(object):
                     self.AeolusMarkov.addFile(filename, filetype=filetype)
                 elif chatchangelog == "changelog":
                     self.ChangelogMarkov.addFile(filename, filetype=filetype)
+                elif chatchangelog == "gym":
+                    self.GymMarkov.addFile(filename, filetype=filetype)
                 else:
-                    self.bot.privmsg(mask.nick, '<chat/changelog> needs to be either "chat" or "changelog".')
+                    self.bot.privmsg(mask.nick, '<chat/changelog/gym> needs to be either "chat" or "changelog" or "gym".')
                 self.bot.privmsg(mask.nick, 'Succeeded parsing. Use !savedb to save progress.')
             except Exception:
                 print(traceback.format_exc())
@@ -479,6 +487,7 @@ class Plugin(object):
         args = {
             'saveAeolusMarkov' : all,
             'saveChangelogMarkov' : all,
+            'saveGymMarkov' : all,
             'path' : 'manual/',
             'keep' : 5,
         }
@@ -502,6 +511,8 @@ class Plugin(object):
             self.AeolusMarkov.save()
         if args.get('saveChangelogMarkov', False):
             self.ChangelogMarkov.save()
+        if args.get('saveGymMarkov', False):
+            self.GymMarkov.save()
         return True
 
     def chatreset(self):
@@ -599,7 +610,7 @@ class Plugin(object):
 
             %%rearrange TEXT ...
         """
-        if self.spam_protect('rearrange', mask, target, args, specialSpamProtect='rearrange'):
+        if self.spam_protect('textchange', mask, target, args, specialSpamProtect='rearrange'):
             return
         words = args.get('TEXT')
         for i in range(0,len(words)):
@@ -611,6 +622,25 @@ class Plugin(object):
 
     @command()
     @asyncio.coroutine
+    def rancaps(self, mask, target, args):
+        """Rearrange letters in words
+
+            %%rancaps TEXT ...
+        """
+        if self.spam_protect('textchange', mask, target, args, specialSpamProtect='rancaps'):
+            return
+        text = " ".join(args.get('TEXT'))
+        text = text.lower()
+        rtext = ""
+        for l in text:
+            if random.random() < 0.5:
+                rtext += l
+            else:
+                rtext += l.capitalize()
+        self.bot.privmsg(target, rtext)
+
+    @command()
+    @asyncio.coroutine
     def changelog(self, mask, target, args):
         """ See what the future will bring
 
@@ -619,6 +649,17 @@ class Plugin(object):
         if self.spam_protect('changelog', mask, target, args, specialSpamProtect='changelog'):
             return
         self.bot.privmsg(target, self.ChangelogMarkov.forwardSentence(False, 30, target, includeWord=True))
+
+    @command()
+    @asyncio.coroutine
+    def mgym(self, mask, target, args):
+        """ Top gym quotes, all legit!
+
+            %%mgym
+        """
+        if self.spam_protect('mgym', mask, target, args, specialSpamProtect='mgym'):
+            return
+        self.bot.privmsg(target, self.GymMarkov.forwardSentence(False, 30, target, includeWord=True))
 
     @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
@@ -1034,7 +1075,8 @@ class Plugin(object):
             data = self.Chatevents.getFormattedPokerData('chatpoker', name, playercount, winningtype)
             if len(data) < 1:
                 return "There are no games to talk about!"
-            data['hwinners'] = ", ".join([self.getUnpingableName(self.Chatpoints.getById(name)['n']) for name in data['hwinners']])
+            #data['hwinners'] = ", ".join([self.getUnpingableName(self.Chatpoints.getById(name)['n']) for name in data['hwinners']])    # to be used once ids are saved rather than names
+            data['hwinners'] = ", ".join([self.getUnpingableName(name) for name in data['hwinners']])
             self.bot.action(channel, "Chatpoker stats! Total games: {count}, total points: {totalpoints}, average points per game: {avg}, "\
                                     "highest stake game: {hpoints} points won by {hwinners}".format(**data))
             return
@@ -1184,6 +1226,87 @@ class Plugin(object):
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatgamesadmin eof')
 
+    @command(permission='admin', show_in_help_list=False, public=False)
+    def chatbetadmin(self, mask, target, args):
+        """ To manage chatbets
+
+            %%chatbetadmin restore
+            %%chatbetadmin addbet <channel> <betname> TEXT ...
+            %%chatbetadmin addoptions <betname> TEXT ...
+            %%chatbetadmin endbet <betname> <winningoption>
+        """
+        global CHATLVL_COMMANDLOCK
+        CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatbetadmin')
+        restore, addbet, addoptions, deletebet, endbet = args.get('restore'), args.get('addbet'), args.get('addoptions'), args.get('deletebet'), args.get('endbet')
+        channel, betname, TEXT, winningoption = args.get('<channel>'), args.get('<betname>'), " ".join(args.get('TEXT')), args.get('<winningoption>')
+        if betname and not addbet:
+            if not self.Chatbets.get(betname, False):
+                self.bot.privmsg(mask.nick, "betname does not exist!")
+                CHATLVL_COMMANDLOCK.release()
+                self.debugPrint('commandlock release chatbetadmin 1')
+                return
+        if restore:
+            self.Chatpoints.transferBetweenKeysForAll('chatbet-reserved', 'p', 99999999999, deleteOld=True)
+            self.bot.privmsg(mask.nick, "Done!")
+        if addbet:
+            self.Chatbets[betname] = Bet(self.bot, self.Chatpoints, self.Chatevents, betname, TEXT, channel=channel)
+            self.bot.privmsg(mask.nick, "Done!")
+        if addoptions:
+            self.Chatbets[betname].addOptions(TEXT)
+            self.bot.privmsg(mask.nick, "Done!")
+        if endbet:
+            if self.Chatbets[betname].endBet(winningoption):
+                self.Chatbets[betname] = False
+                self.bot.privmsg(mask.nick, "Done!")
+            else:
+                self.bot.privmsg(mask.nick, "That is not an existing option!")
+        CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatbetadmin eof')
+
+    @command
+    @asyncio.coroutine
+    def chatbet(self, mask, target, args):
+        """ Betting!
+
+            %%chatbet
+            %%chatbet <betname> <option> <points/all>
+        """
+        global CHATLVL_COMMANDLOCK
+        CHATLVL_COMMANDLOCK.acquire()
+        self.debugPrint('commandlock acquire chatbet')
+        betname, option, points = args.get('<betname>'), args.get('<option>'), args.get('<points/all>')
+        allpoints = (points == 'all')
+        bet = bool(points) and bool(betname)
+        if points:
+            try:
+                points = int(points)
+            except:
+                if allpoints: points = 9999999999
+                else: points = 0
+        if betname:
+            if not self.Chatbets.get(betname, False):
+                CHATLVL_COMMANDLOCK.release()
+                self.debugPrint('commandlock release chatbet 1')
+                self.bot.privmsg(target, "Bet with selected name does not exist!")
+                return
+        if bet:
+            id, _ = yield from self.__nameToFafId(mask.nick)
+            self.Chatbets[betname].addBet(target, option, id, points, allpoints=allpoints)
+        else:
+            # printing out the options, need spam protect only for this
+            if self.spam_protect('chatbet', mask, target, args, specialSpamProtect='chatbet'):
+                return
+            count = len(self.Chatbets.keys())
+            if count == 0:
+                self.bot.privmsg(target, "There are currently no bets!")
+            else:
+                self.bot.privmsg(target, "There are " + str(count) + " bets going on!")
+                for key in self.Chatbets.keys():
+                    self.bot.privmsg(target, "- " + self.Chatbets[key].asString())
+        CHATLVL_COMMANDLOCK.release()
+        self.debugPrint('commandlock release chatbet eof')
+
     def __textToPokerCommand(self, text):
         # TODO raises
         text = text.lower()
@@ -1254,8 +1377,6 @@ class Plugin(object):
                 CHATLVL_COMMANDLOCK.release()
                 self.debugPrint('commandlock release chatpoker 2')
                 return "Failed setting points! Are you sure you gave me a number?"
-        else:
-            points = 50
         if (args.get('reveal') or textcommands.get('reveal')) and self.ChatpokerPrev.get(target, False):
             self.ChatpokerPrev[target].reveal(mask.nick)
             CHATLVL_COMMANDLOCK.release()
@@ -1279,8 +1400,9 @@ class Plugin(object):
                     self.Chatpoker[target].sponsor(name, tourneydata['ante'] * tourneydata['players'][name])
                 self.ChatgameTourneys[target]['minpoints'] = int(self.ChatgameTourneys[target]['minpoints'] * tourneydata['minpincreasemult'] + tourneydata['minpincreaseadd'])
             else:
-                points = max([points, 20])
-                self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, points)
+                if not points: points = 50
+                else: points = max([points, 20])
+                self.Chatpoker[target] = Poker(self.bot, self.on_cpoker_done, self.Chatpoints, self.Chatevents, target, maxpoints=points)
             createdGame = True
         if args.get('start') or textcommands.get('start'):
             self.Chatpoker[target].beginFirstRound(mask.nick)
@@ -1321,10 +1443,10 @@ class Plugin(object):
 
     @command
     @asyncio.coroutine
-    def cbet(self, mask, target, args):
+    def cr(self, mask, target, args):
         """ Shortcut to the chatroulette command
 
-            %%cbet <points/all>
+            %%cr <points/all>
         """
         yield from self.chatroulette(mask, target, args)
 
@@ -1603,7 +1725,7 @@ class Plugin(object):
         if len(elems) > 0:
             self.bot.privmsg(target, elems[0])
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
     def chatlvlchannels(self, mask, target, args):
         """Adds/removes a given channel to those which points can be farmed in
@@ -1682,7 +1804,8 @@ class Plugin(object):
         """
         words = ["join", "leave", "files", "cd", "savedb", "twitchjoin", "twitchleave",\
                  "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin",\
-                 "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart", "chatgamesadmin", "chatlvlchannels_", "chattipadmin"]
+                 "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart",\
+                 "chatgamesadmin", "chatlvlchannels", "chattipadmin", "chatbetadmin"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         #for word in words:
         #    self.bot.privmsg(mask.nick, "- " + word)

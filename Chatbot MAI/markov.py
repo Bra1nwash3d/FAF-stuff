@@ -1,6 +1,7 @@
 import json
 import codecs
 import random
+import traceback
 
 
 MINCHAINLENGTH = 4
@@ -16,8 +17,12 @@ class Markov():
         try:
             with open(self.wordfilepath, 'r+') as file:
                 self.markovwords = json.load(file)
-        except:
+        except Exception:
+            print(traceback.format_exc())
             pass
+
+    def getInfo(self):
+        return "[path: " + self.wordfilepath + ", count: " + str(len(self.markovwords)) + "]"
 
     def save(self, path=False):
         if not path:
@@ -62,10 +67,10 @@ class Markov():
             wg['usesB'] = wg['usesB'] + 1
             self.markovwords[words[i]] = wg
         # start / uses / end counter
-        wg = self.markovwords.get(words[len(words) - 1], self.__getMarkovWordsTemplate())
+        wg = self.markovwords.get(words[-1], self.__getMarkovWordsTemplate())
         wg['end'] = wg['end'] + 1
         wg['usesF'] = wg['usesF'] + 1
-        self.markovwords[words[len(words) - 1]] = wg
+        self.markovwords[words[-1]] = wg
         wg = self.markovwords.get(words[0], self.__getMarkovWordsTemplate())
         wg['start'] = wg['start'] + 1
         wg['usesB'] = wg['usesB'] + 1

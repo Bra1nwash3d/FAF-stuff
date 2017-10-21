@@ -547,7 +547,7 @@ class Poker:
         else:
             self.__outputToChat(self.channel, "No cards left!")
         if len(self.playerOrder) == 1:
-            self.__outputToChat(self.channel, "A new poker game! Use '!cpoker join' to join, and '!cpoker start' to start it! Requires {} points to join!".format(self.maxpoints))
+            self.__outputToChat(self.channel, "A new poker game! Use '!cp join' to join, and '!cp start' to start it! Requires {} points to join!".format(self.maxpoints))
         self.lock.release()
         return True
 
