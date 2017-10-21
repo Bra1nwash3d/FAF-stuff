@@ -9,17 +9,20 @@ class Bet():
         self.chatpointsReservedKey = 'chatbet-reserved'
         self.chatpointsStatisticsKey = 'chatbets'
         self.channel = channel
-        self.gamecostreceiver = '#shadows'
+        self.gamecostreceiver = 'MAI'
         self.chatpointsObj = chatpointsObj
         self.chateventsObj = chateventsObj
         self.description = description
         self.options = {}
+        self.openForBets = True
 
     def __debugPrint(self, text):
         if useDebugPrint:
             print(text.encode('ascii', errors='backslashreplace'))
 
-    def __outputToChat(self, channel, msg):
+    def __outputToChat(self, channel, msg, ignore=False):
+        if ignore:
+            return
         self.__debugPrint(channel + ': ' + msg)
         self.bot.privmsg(channel, msg)
 
@@ -37,32 +40,36 @@ class Bet():
     def __reservePlayerPoints(self, name, points, partial):
         return self.chatpointsObj.transferBetweenKeysById(name, self.chatpointsDefaultKey, self.chatpointsReservedKey, points, partial=partial)
 
+    def closeBet(self):
+        self.openForBets = False
+
     def addOptions(self, TEXT):
         for option in TEXT.lower().replace(",", " ").split():
             if len(option) >= 1:
                 self.__addOptionIfNecessary(option)
 
     def asString(self):
-        optionStrings = [key+" ("+str(sum(self.options[key].values()))+")" for key in self.options.keys()]
+        optionStrings = [key+" ("+format(sum(self.options[key].values()), '.1f')+")" for key in self.options.keys()]
         return self.name + ": " + self.description + " [" + ", ".join(optionStrings) + "]"
 
-    def addBet(self, channel, optionname, id, points, allpoints=False):
+    def addBet(self, channel, optionname, id, points, allpoints=False, printInChat=True):
         self.__debugPrint('adding bet: ' + optionname + ', id=' + id + ', points=' + str(points) + ', allpoints=' + str(allpoints))
+        if not self.openForBets:
+            self.__outputToChat(channel, 'Betting is closed!')
+            return False
         if not optionname in self.options.keys():
             self.__outputToChat(channel, 'The selection option does not exist!')
             return False
         worked, amount = self.__reservePlayerPoints(id, points, partial=allpoints)
         if worked:
             self.__addPlayerToOption(optionname, id, amount)
-            if allpoints:
-                self.__outputToChat(channel, 'Noted! ('+str(amount)+' points)')
-            else:
-                self.__outputToChat(channel, 'Noted!')
+            if allpoints: self.__outputToChat(channel, 'Noted! ('+format(amount, '.1f')+' points)', ignore=(not printInChat))
+            else: self.__outputToChat(channel, 'Noted!', ignore=(not printInChat))
             return True
         return False
 
     def endBet(self, winningoption):
-        if not winningoption in self.options.keys():
+        if (not winningoption in self.options.keys()):
             return False
         winning = {}
         all = {}

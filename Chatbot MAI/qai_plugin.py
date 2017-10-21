@@ -212,7 +212,7 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatbet']:
+        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatbet', 'toGroup']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -236,6 +236,9 @@ class Plugin(object):
         self.ChatpokerPrev = {}
         self.ChatgameTourneys = {}
         self.Chatbets = {}
+        self.playerslists = {
+            'poker' : self.__dbGet(['playerlists', 'poker'])
+        }
 
         try:
             if self.chatroulettethreads:
@@ -602,6 +605,55 @@ class Plugin(object):
         if delete:
             CHATLVLWORDS = self.__dbDel(['chatlvlwords'], text, save=False)
             return "Removed"
+
+    @command()
+    @asyncio.coroutine
+    def poker(self, mask, target, args):
+        """Join the poker community
+
+            %%poker
+        """
+        if not self.playerslists.get('poker', {}).get(mask.nick, False):
+            self.__dbAdd(['playerlists', 'poker'], mask.nick, True, save=True)
+            self.playerslists = self.__dbGet(['playerlists'])
+            self.bot.privmsg(mask.nick, "Welcome in the poker community!")
+
+    @command()
+    @asyncio.coroutine
+    def unpoker(self, mask, target, args):
+        """Leave the poker community
+
+            %%unpoker
+        """
+        if self.playerslists.get('poker', {}).get(mask.nick, False):
+            self.__dbDel(['playerlists', 'poker'], mask.nick, save=True)
+            self.playerslists = self.__dbGet(['playerlists'])
+            self.bot.privmsg(mask.nick, "Too bad you're leaving!")
+
+    @command()
+    @asyncio.coroutine
+    def to(self, mask, target, args):
+        """Inform your fellow players of important events
+
+            %%to poker
+        """
+        if not self.playerslists.get('poker', {}).get(mask.nick, False):
+            self.bot.privmsg(mask.nick, "Only people on the poker list may use this command!")
+            return
+        if self.spam_protect('toGroup', mask, target, args, specialSpamProtect='toGroup'):
+            return
+        inChannel = self.__filterForPlayersInChannel(self.playerslists.get('poker', {}), target)
+        viablePlayers = []
+        requiredPoints = 0
+        if self.Chatpoker.get(target, False):
+            requiredPoints = self.Chatpoker[target].getMaxPoints()
+        for name in inChannel:
+            if self.Chatpoints.getById(name).get('p', 0) >= requiredPoints:
+                viablePlayers.append(name)
+        if len(viablePlayers) > 0:
+            self.bot.privmsg(target, "Join poker! " + ", ".join(viablePlayers))
+        else:
+            self.bot.privmsg(target, "Nobody to join :(")
 
     @command()
     @asyncio.coroutine
@@ -1233,12 +1285,13 @@ class Plugin(object):
             %%chatbetadmin restore
             %%chatbetadmin addbet <channel> <betname> TEXT ...
             %%chatbetadmin addoptions <betname> TEXT ...
+            %%chatbetadmin closebet <betname>
             %%chatbetadmin endbet <betname> <winningoption>
         """
         global CHATLVL_COMMANDLOCK
         CHATLVL_COMMANDLOCK.acquire()
         self.debugPrint('commandlock acquire chatbetadmin')
-        restore, addbet, addoptions, deletebet, endbet = args.get('restore'), args.get('addbet'), args.get('addoptions'), args.get('deletebet'), args.get('endbet')
+        restore, addbet, addoptions, closebet, deletebet, endbet = args.get('restore'), args.get('addbet'), args.get('addoptions'), args.get('closebet'), args.get('deletebet'), args.get('endbet')
         channel, betname, TEXT, winningoption = args.get('<channel>'), args.get('<betname>'), " ".join(args.get('TEXT')), args.get('<winningoption>')
         if betname and not addbet:
             if not self.Chatbets.get(betname, False):
@@ -1255,9 +1308,13 @@ class Plugin(object):
         if addoptions:
             self.Chatbets[betname].addOptions(TEXT)
             self.bot.privmsg(mask.nick, "Done!")
+        if closebet:
+            self.Chatbets[betname].closeBet()
+            self.bot.privmsg(mask.nick, "Done!")
         if endbet:
             if self.Chatbets[betname].endBet(winningoption):
                 self.Chatbets[betname] = False
+                del self.Chatbets[betname]
                 self.bot.privmsg(mask.nick, "Done!")
             else:
                 self.bot.privmsg(mask.nick, "That is not an existing option!")

@@ -633,3 +633,6 @@ class Poker:
 
     def isRunning(self):
         return self.gameIsRunning
+
+    def getMaxPoints(self):
+        return self.maxpoints
