@@ -26,6 +26,7 @@ markovwordsstorage_chat = ./dbmarkovChat.json
 markovwordsstorage_changelog = ./dbmarkovChangelogs.json
 chatlevelstorage = ./chatlevel.json
 chateventstorage = ./chatevents.json
+chatmiscstorage = ./chatmisc.json
 
 autojoins =
     shadows
