@@ -1,0 +1,14 @@
+name = "rainbow colour"
+uid = "4b1e110c-b4ef-11e7-abc4-cec278b6b50a"
+version = 0.1
+description = "test"
+author = "Myxir (Washy)"
+selectable = true
+enabled = true
+exclusive = false
+ui_only = false
+requires = {}
+requiresNames = {}
+conflicts = {}
+before = {}
+after = {}
