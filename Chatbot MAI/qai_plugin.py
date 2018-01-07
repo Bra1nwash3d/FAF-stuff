@@ -23,7 +23,7 @@ from markov import Markov
 from points import Points
 from events import Events
 from poker import Poker
-from bet import Bet
+from bet import Bets
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
@@ -232,10 +232,10 @@ class Plugin(object):
         print('loaded gym markov, info:', self.ChangelogMarkov.getInfo())
         self.Chatpoints = Points(self.bot.config.get('chatlevelstorage', './chatlevel.json'))
         self.Chatevents = Events(self.bot.config.get('chateventstorage', './chatevents.json'))
+        self.Chatbets = Bets(self.bot, self.Chatpoints, self.Chatevents, self.bot.config.get('chatmiscstorage', './chatmisc.json'))
         self.Chatpoker = {}
         self.ChatpokerPrev = {}
         self.ChatgameTourneys = {}
-        self.Chatbets = {}
         self.playerslists = {
             'poker' : self.__dbGet(['playerlists', 'poker'])
         }
@@ -500,13 +500,12 @@ class Plugin(object):
 
     def save(self, args={}):
         self.__dbSave()
-        self.Chatpoints.save()
-        self.Chatevents.save()
         path = './backups/'+args.get('path', '')
         pathFull = path+str(int(time.time()))+"/"
         os.makedirs(pathFull, exist_ok=True)
-        shutil.copy2("./"+self.Chatpoints.getFilePath(), pathFull) # chatpoint backup
-        shutil.copy2("./"+self.Chatevents.getFilePath(), pathFull)
+        for obj in [self.Chatpoints, self.Chatevents, self.Chatbets]:
+            obj.save()
+            shutil.copy2("./"+obj.getFilePath(), pathFull)
         allRelevantBackups = [d[0] for d in os.walk(path)]
         for i in range(1, len(allRelevantBackups) - args.get('keep', 10)):
             shutil.rmtree(allRelevantBackups[i])
@@ -636,7 +635,11 @@ class Plugin(object):
         """Inform your fellow players of important events
 
             %%to poker
+            %%to TEXT ...
         """
+        poker = args.get('poker')
+        if not poker:
+            return
         if not self.playerslists.get('poker', {}).get(mask.nick, False):
             self.bot.privmsg(mask.nick, "Only people on the poker list may use this command!")
             return
@@ -1294,7 +1297,7 @@ class Plugin(object):
         restore, addbet, addoptions, closebet, deletebet, endbet = args.get('restore'), args.get('addbet'), args.get('addoptions'), args.get('closebet'), args.get('deletebet'), args.get('endbet')
         channel, betname, TEXT, winningoption = args.get('<channel>'), args.get('<betname>'), " ".join(args.get('TEXT')), args.get('<winningoption>')
         if betname and not addbet:
-            if not self.Chatbets.get(betname, False):
+            if not self.Chatbets.betExists(betname):
                 self.bot.privmsg(mask.nick, "betname does not exist!")
                 CHATLVL_COMMANDLOCK.release()
                 self.debugPrint('commandlock release chatbetadmin 1')
@@ -1303,18 +1306,16 @@ class Plugin(object):
             self.Chatpoints.transferBetweenKeysForAll('chatbet-reserved', 'p', 99999999999, deleteOld=True)
             self.bot.privmsg(mask.nick, "Done!")
         if addbet:
-            self.Chatbets[betname] = Bet(self.bot, self.Chatpoints, self.Chatevents, betname, TEXT, channel=channel)
+            self.Chatbets.createBet(betname, TEXT, channel=channel)
             self.bot.privmsg(mask.nick, "Done!")
         if addoptions:
-            self.Chatbets[betname].addOptions(TEXT)
+            self.Chatbets.addOptions(betname, TEXT)
             self.bot.privmsg(mask.nick, "Done!")
         if closebet:
-            self.Chatbets[betname].closeBet()
+            self.Chatbets.closeBet(betname)
             self.bot.privmsg(mask.nick, "Done!")
         if endbet:
-            if self.Chatbets[betname].endBet(winningoption):
-                self.Chatbets[betname] = False
-                del self.Chatbets[betname]
+            if self.Chatbets.endBet(betname, winningoption):
                 self.bot.privmsg(mask.nick, "Done!")
             else:
                 self.bot.privmsg(mask.nick, "That is not an existing option!")
@@ -1342,25 +1343,26 @@ class Plugin(object):
                 if allpoints: points = 9999999999
                 else: points = 0
         if betname:
-            if not self.Chatbets.get(betname, False):
+            if not self.Chatbets.betExists(betname):
                 CHATLVL_COMMANDLOCK.release()
                 self.debugPrint('commandlock release chatbet 1')
                 self.bot.privmsg(target, "Bet with selected name does not exist!")
                 return
         if bet:
             id, _ = yield from self.__nameToFafId(mask.nick)
-            self.Chatbets[betname].addBet(target, option, id, points, allpoints=allpoints)
+            self.Chatbets.addBet(betname, target, option, id, points, allpoints=allpoints)
         else:
             # printing out the options, need spam protect only for this
             if self.spam_protect('chatbet', mask, target, args, specialSpamProtect='chatbet'):
                 return
-            count = len(self.Chatbets.keys())
+            count = self.Chatbets.count()
+            strings = self.Chatbets.asStrings()
             if count == 0:
                 self.bot.privmsg(target, "There are currently no bets!")
             else:
                 self.bot.privmsg(target, "There are " + str(count) + " bets going on!")
-                for key in self.Chatbets.keys():
-                    self.bot.privmsg(target, "- " + self.Chatbets[key].asString())
+                for string in strings:
+                    self.bot.privmsg(target, "- " + string)
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatbet eof')
 

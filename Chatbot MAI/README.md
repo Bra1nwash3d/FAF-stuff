@@ -18,3 +18,9 @@ Create the config file and modify the settings as appropriate:
 ## Usage
 
     irc3 config.ini
+
+## Comment
+
+    Like any fun project this has turned into some spaghetti code that should be reworked proplerly
+    (especially using lightsql/mysql instead of json objects), but any single minor change does not seem
+    to make it necessary...
