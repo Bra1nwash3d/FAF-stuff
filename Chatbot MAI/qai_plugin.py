@@ -526,6 +526,7 @@ class Plugin(object):
         })
         self.Chatpoints.reset()
         self.Chatevents.reset()
+        self.Chatbets.reset()
         CHATLVL_EPOCH += 1
         self.save(args = {
             'path' : 'post-reset/',

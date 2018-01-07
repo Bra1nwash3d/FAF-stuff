@@ -47,6 +47,9 @@ class Bets():
             return self.bets.get(name).addBet(self, channel, optionname, id, points, allpoints, printInChat)
         return False
 
+    def reset(self):
+        self.bets = {}
+
     def endBet(self, name, winningoption):
         reply = False
         if self.betExists(name):
