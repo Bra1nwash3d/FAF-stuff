@@ -24,6 +24,7 @@ from points import Points
 from events import Events
 from poker import Poker
 from bet import Bets
+from mai.roasts import BHROASTS
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
@@ -37,6 +38,8 @@ DEFAULTCD = False
 
 RENAMED_REGEX_NAMES = re.compile("<td>.*?</td>")
 RENAMED_REGEX_CURRENTNAME = re.compile("<br /><b>.*?</b>")
+
+NICKSERV_WAIT_TICKS = 60
 
 CHATLVL_COMMANDLOCK = False
 CHATLVL_RESETNAME = '#reset'
@@ -158,7 +161,8 @@ class Plugin(object):
     @asyncio.coroutine
     def __isNickservIdentified(self, nick):
         self.bot.privmsg('nickserv', "status {}".format(nick))
-        remainingTries = 20
+        global NICKSERV_WAIT_TICKS
+        remainingTries = NICKSERV_WAIT_TICKS + 0
         while remainingTries > 0:
             if NICKSERVIDENTIFIEDRESPONSES.get(nick):
                 value = NICKSERVIDENTIFIEDRESPONSES[nick]
@@ -212,7 +216,7 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatbet', 'toGroup']:
+        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatbet', 'toGroup', 'roast']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -678,6 +682,18 @@ class Plugin(object):
 
     @command()
     @asyncio.coroutine
+    def bhroast(self, mask, target, args):
+        """Roast Blackheart with original comments from e.g. youtube!
+           (Name might contain a . to avoid pinging)
+
+            %%bhroast
+        """
+        if self.spam_protect('roast', mask, target, args, specialSpamProtect='roast'):
+            return
+        self.bot.privmsg(target, "%s" % random.choice(BHROASTS))
+
+    @command()
+    @asyncio.coroutine
     def rancaps(self, mask, target, args):
         """Rearrange letters in words
 
@@ -806,16 +822,16 @@ class Plugin(object):
         self.bot.privmsg(target, self.AeolusMarkov.chainprob(w1, w2))
 
     def update_chatlevels(self, mask, channel, msg):
+        if msg.startswith('!'):
+            return
         global CHATLVLWORDS, MAIN_CHANNEL, POKER_CHANNEL
         points, text = 0, msg.lower()
         for word in CHATLVLWORDS.keys():
             if word in text:
                 points += CHATLVLWORDS[word]
-        wordcount = len(text.split())
-        avglen = (len(msg)-wordcount+1) / wordcount
-        if msg.startswith('!') or (avglen < 2):
-            return
-        points += min([0.4*wordcount, 1.2+0.2*wordcount, 6])
+        # wordcount = len(text.split())
+        lettercount = len(text.replace(" ", ""))
+        points += 0.1 * lettercount
         if channel in self.__dbGet(['chatlvlchannels']).values():
             self.Chatpoints.updatePointsById(mask.nick, points)
         if channel.startswith('#'):
