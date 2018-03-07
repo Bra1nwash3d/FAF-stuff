@@ -720,9 +720,12 @@ class Plugin(object):
 
             %%answer TEXT ...
         """
-        if self.spam_protect('question', mask, target, args, specialSpamProtect='question'):
-            return
-        self.Questions.answer(mask.nick, target, args.get('TEXT'))
+        if self.Questions.answer(mask.nick, target, args.get('TEXT')):
+            self.spam_protect('question', mask, target, args, specialSpamProtect='question', setToNow=True)
+            self.save(args={
+                'path' : 'questions/',
+                'keep' : 1,
+            })
 
     @command()
     @asyncio.coroutine
