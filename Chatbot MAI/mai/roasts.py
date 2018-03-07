@@ -12,7 +12,7 @@ BHROASTS = [
     """Blackhear.t, the Father of Kings of Salt.﻿""",
     """Blackhard lost a lot of my respect and I dare say the respect of others. He acted like total shit this game.﻿""",
     """Blackhear.ts comments gave me cancer.﻿""",
-    """You really have to blend out the chat when blackhearth is around. The Community Awareness about Blackhear.th is spreading :(""",
+    """You really have to blend out the chat when blackhearth is around. The Community Awareness about Blackheart.h is spreading :(""",
     """Wow Dogler and Blackhear.t are a bunch of foul-mouthed degenerates.﻿""",
     """The map itself is fine, with a fun mix of everything, so just ignore the elitist fucktards like Blackhear.t and Dogler﻿""",
     """Blackhear.t, more like Blackfart﻿""",
@@ -22,8 +22,14 @@ BHROASTS = [
     """Brainfart is a good sport, nice to see. Doesn't take himself too seriously, unlike a certain other player with a B in this cast.﻿""",
     """Blackhear.t has always been an arrogant asshole. I enjoy seeing him lose. More casts where he loses please.﻿""",
     """BC_Blackhear.t? More like BC_Butthurt.﻿""",
+    """I'm glad Blackhear.t lost tbh, he was being a total douche although he did nothing except... well, nothing at all. Tokyto carried him. He acted like a toxic League of Legend player and didn't deserve to win this in any way.﻿""",
     """Glad to see Blackhear.t taken down a notch. Shame it doesn't happen more often; his ego needs the deflation.﻿""",
     """Can Blackhear.t not accept losing? Everytime he loses, he calls everyone noobs, blames his team, and then denies anyone on the other team doing good plays, even in games where he plays like shit and hardly contributes. """,
     """I hate the whining from blackheart. Every time he ties he goes crying in all chat that the other team sucks -- even though he just lost, so clearly he sucked more than them. Is he a teenager?﻿""",
+    """He's like that in every Gyle cast I've ever seen (that has him in it, ofc).... even recent ones! Never did grow up.﻿""",
+    """good god blackheart is obnoxious.﻿""",
+    """And is Blackhear.t always that much of a dick, or was this unusual?﻿""",
+    """I realize this is an old comment, but from the casts I've watched Blackhear.t is pretty much a dick all the time.﻿""",
+    """Between him and Blackhear.t for biggest c**t in the FAF community.... Blackhear.t is slightly ahead, in my mind, because he's still a complete tool in way more recent games!﻿""",
     """Someone please tell Banana and Tiep that they are utter assholes, seriously, its really sad and such a downer to see such bad sportsmanship, ruins not only the game, but the video for me as well.﻿"""
 ]
