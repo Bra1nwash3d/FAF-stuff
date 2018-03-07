@@ -25,6 +25,7 @@ from events import Events
 from poker import Poker
 from bet import Bets
 from mai.roasts import BHROASTS
+from mai.questions import Questions
 
 
 MAIN_CHANNEL = "#aeolus" #   shadows
@@ -216,7 +217,8 @@ class Plugin(object):
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
-        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder', 'chatgames', 'chatbet', 'toGroup', 'roast']:
+        for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder',
+                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -237,6 +239,7 @@ class Plugin(object):
         self.Chatpoints = Points(self.bot.config.get('chatlevelstorage', './chatlevel.json'))
         self.Chatevents = Events(self.bot.config.get('chateventstorage', './chatevents.json'))
         self.Chatbets = Bets(self.bot, self.Chatpoints, self.Chatevents, self.bot.config.get('chatmiscstorage', './chatmisc.json'))
+        self.Questions = Questions(self.bot, self.Chatpoints, self.Chatevents, self.bot.config.get('questions', './mai/questions.json'))
         self.Chatpoker = {}
         self.ChatpokerPrev = {}
         self.ChatgameTourneys = {}
@@ -691,6 +694,35 @@ class Plugin(object):
         if self.spam_protect('roast', mask, target, args, specialSpamProtect='roast'):
             return
         self.bot.privmsg(target, "%s" % random.choice(BHROASTS))
+
+    @command()
+    @asyncio.coroutine
+    def question(self, mask, target, args):
+        """
+
+            %%question tags
+            %%question [<tag>]
+        """
+        tags, tag = args.get('tags'), args.get('<tag>')
+        if tags:
+            if self.spam_protect('question-tags', mask, target, args, specialSpamProtect='question-tags'):
+                return
+            self.Questions.get_tags(mask.nick, target)
+        else:
+            if self.spam_protect('question', mask, target, args, specialSpamProtect='question'):
+                return
+            self.Questions.question(mask.nick, target, tag=tag)
+
+    @command()
+    @asyncio.coroutine
+    def answer(self, mask, target, args):
+        """
+
+            %%answer TEXT ...
+        """
+        if self.spam_protect('question', mask, target, args, specialSpamProtect='question'):
+            return
+        self.Questions.answer(mask.nick, target, args.get('TEXT'))
 
     @command()
     @asyncio.coroutine
