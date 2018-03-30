@@ -701,17 +701,22 @@ class Plugin(object):
         """
 
             %%question tags
-            %%question [<tag>]
+            %%question abandon
+            %%question
+            %%question TAGS...
         """
-        tags, tag = args.get('tags'), args.get('<tag>')
-        if tags:
+        print(args)
+        get_tags, tags, abandon = args.get('tags'), args.get('TAGS'), args.get('abandon')
+        if get_tags:
             if self.spam_protect('question-tags', mask, target, args, specialSpamProtect='question-tags'):
                 return
             self.Questions.get_tags(mask.nick, target)
+        elif abandon:
+            self.Questions.abandon_question(mask.nick, target)
         else:
-            if self.spam_protect('question', mask, target, args, specialSpamProtect='question'):
-                return
-            self.Questions.question(mask.nick, target, tag=tag)
+            if not self.spam_protect('question', mask, target, args, specialSpamProtect='question', updateTimer=False):
+                if self.Questions.question(mask.nick, target, tags=tags):
+                    self.spam_protect('question', mask, target, args, specialSpamProtect='question')
 
     @command()
     @asyncio.coroutine
@@ -1637,7 +1642,7 @@ class Plugin(object):
         for i in inputs:
             result[i[0]] = result.get(i[0], 0) + i[1]
         totalpoints = sum(result.values())
-        maibet = 1 + int(totalpoints/200)
+        maibet = 0.5 + int(totalpoints/50)
         result[self.bot.config['nick']] = maibet
         winner, _ = self.pickWeightedRandom(result)
         print('- roulette done!', winner, args.get('channel'), totalpoints)
