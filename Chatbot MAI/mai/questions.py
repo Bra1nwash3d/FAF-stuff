@@ -92,12 +92,10 @@ class Questions():
         if q.get('d'):
             c = random.sample(q.get("d"), DISTRACTORS) + [correct]
             random.shuffle(c)
-            index = c.index(correct)
             self.current_question['c'] = [BY_LETTER[ind] + ') ' + c[ind] for ind in range(len(c))]
             # add A), a) etc as valid answers
-            self.current_question['a'].append(BY_LETTER[index])
+            index = c.index(correct)
             self.current_question['a'].append(BY_LETTER[index].lower())
-            self.current_question['a'].append(BY_LETTER[index]+')')
             self.current_question['a'].append(BY_LETTER[index].lower()+')')
         self.lock.release()
         print(self.current_question['a'])
