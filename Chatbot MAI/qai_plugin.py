@@ -913,6 +913,8 @@ class Plugin(object):
             additions += ", " + format(data.get('chatpoker'), '.1f') + " from poker"
         if data.get('chatroulette', False):
             additions += ", " + format(data.get('chatroulette'), '.1f') + " from roulette"
+        if data.get('questions', False):
+            additions += ", " + format(data.get('questions'), '.1f') + " from questions"
         self.bot.privmsg(location, "{object}'s points: {total}, level {level}, {toUp} to next level{additions}".format(**{
                 "object": name,
                 "level": str(data.get('level', 1)),
@@ -1033,8 +1035,9 @@ class Plugin(object):
             %%chatladder tip [rev]
             %%chatladder roulette [rev]
             %%chatladder poker [rev]
+            %%chatladder questions
         """
-        tip, roulette, poker = args.get('tip'), args.get('roulette'), args.get('poker')
+        tip, roulette, poker, questions = args.get('tip'), args.get('roulette'), args.get('poker'), args.get('questions')
         rev, all = args.get('rev', False), args.get('all', False)
         if self.spam_protect('chatladder', mask, target, args, specialSpamProtect='chatladder'):
             return
@@ -1061,6 +1064,10 @@ class Plugin(object):
             if rev:
                 announceString = "Unsuccessful poker players (won-lost): {list}"
             individualString = "{name} with {chatpoker} points"
+        elif questions:
+            ladder = self.Chatpoints.getSortedBy(by='questions', reversed=True)
+            announceString = "Successful question snipers: {list}"
+            individualString = "{name} with {questions} points"
         elif default:
             ladder = self.Chatpoints.getSortedBy(by='p', reversed=True)
             announceString = "Top chatwarriors: {list}"
@@ -1078,6 +1085,7 @@ class Plugin(object):
                     "chattip": format(playerdata.get('chattip', 0), '.1f'),
                     "chatroulette": format(playerdata.get('chatroulette', 0), '.1f'),
                     "chatpoker": format(playerdata.get('chatpoker', 0), '.1f'),
+                    "questions": format(playerdata.get('questions', 0), '.0f'),
                 }))
                 announced += 1
                 top5[name] = announced
@@ -1161,8 +1169,10 @@ class Plugin(object):
             %%chatstats poker [<name>]
             %%chatstats poker minplayers <playercount>
             %%chatstats poker winningtype <fold/highest/2/2pair/3/straight/flush/fh/4/sflush/rsflush>
+            %%chatstats questions
         """
-        roulette, poker, minplayers, name, playercount = args.get('roulette'), args.get('poker'), args.get('minplayers'), args.get('<name>'), args.get('<playercount>')
+        roulette, poker, questions = args.get('roulette'), args.get('poker'),args.get('questions')
+        minplayers, name, playercount = args.get('minplayers'), args.get('<name>'), args.get('<playercount>')
         channel = target
         if self.spam_protect('chatstats', mask, target, args, specialSpamProtect='chatstats'):
             channel = mask.nick
@@ -1191,6 +1201,13 @@ class Plugin(object):
             data['hwinners'] = ", ".join([self.getUnpingableName(name) for name in data['hwinners']])
             self.bot.action(channel, "Chatpoker stats! Total games: {count}, total points: {totalpoints}, average points per game: {avg}, "\
                                     "highest stake game: {hpoints} points won by {hwinners}".format(**data))
+            return
+        if questions:
+            data = self.Chatevents.getFormattedQuestionData('question')
+            if len(data) < 1:
+                return "There are no stats to talk about!"
+            self.bot.action(channel, "Questions stats! Total games: {count}, total points: {totalpoints}, "\
+                                     "average points per game: {avg}".format(**data))
             return
 
     @command(permission='admin', public=False, show_in_help_list=False)

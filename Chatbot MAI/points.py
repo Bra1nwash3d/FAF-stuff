@@ -77,6 +77,7 @@ class Points():
             'chatroulette' : element.get('chatroulette', False),
             'chatpoker' : element.get('chatpoker', False),
             'chattip' : element.get('chattip', False),
+            'questions' : element.get('questions', False),
         }
 
     def addNew(self, id, name=False, data={}):

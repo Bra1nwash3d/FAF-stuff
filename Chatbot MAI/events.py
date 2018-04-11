@@ -101,7 +101,6 @@ class Events():
             "roiwinner": roiwinner,
         }
 
-    # TODO
     def getFormattedPokerData(self, key, filtername=False, minparticipants=2, winningtype=False):
         eventdata = self.getData(key)
         if filtername:
@@ -140,5 +139,19 @@ class Events():
             "avg": format(totalpoints / gamecount, '.1f'),
             "hpoints": str(highestwin),
             "hwinners": highestwinner,
+        }
+
+    def getFormattedQuestionData(self, key):
+        eventdata = self.getData(key)
+        if len(eventdata) == 0:
+            return {}
+        count = max([len(eventdata), 1])
+        totalpoints = 0
+        for question in eventdata:
+            totalpoints += question.get('p', 0)
+        return {
+            "count": str(count),
+            "totalpoints": str(totalpoints),
+            "avg": format(totalpoints / count, '.1f'),
         }
 
