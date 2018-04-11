@@ -1045,7 +1045,7 @@ class Plugin(object):
         ladder = []
         announceString = ""
         individualString = ""
-        default = (not tip) and (not roulette) and (not poker)
+        default = (not tip) and (not roulette) and (not poker) and (not questions)
         if tip:
             ladder = self.Chatpoints.getSortedBy(by='chattip', reversed=(not rev))
             announceString = "Top tip receivers (received-sent): {list}"
