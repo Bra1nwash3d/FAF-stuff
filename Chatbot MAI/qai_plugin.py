@@ -675,6 +675,12 @@ class Plugin(object):
 
             %%rearrange TEXT ...
         """
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 500)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
         if self.spam_protect('textchange', mask, target, args, specialSpamProtect='rearrange'):
             return
         words = args.get('TEXT')
@@ -695,7 +701,12 @@ class Plugin(object):
         """
         if self.spam_protect('roast', mask, target, args, specialSpamProtect='roast'):
             return
-        self.bot.privmsg(target, "%s" % random.choice(BHROASTS))
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 250)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if hp:
+            self.bot.privmsg(target, "%s" % random.choice(BHROASTS))
 
     @command()
     @asyncio.coroutine
@@ -707,7 +718,6 @@ class Plugin(object):
             %%question
             %%question TAGS...
         """
-        print(args)
         get_tags, tags, abandon = args.get('tags'), args.get('TAGS'), args.get('abandon')
         if get_tags:
             if self.spam_protect('question-tags', mask, target, args, specialSpamProtect='question-tags'):
@@ -727,6 +737,12 @@ class Plugin(object):
 
             %%answer TEXT ...
         """
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('questionpoints_max', 500)],
+                                     any=[('bot_admin', 0)])
+        if not hp:
+            return
         if self.Questions.answer(mask.nick, target, args.get('TEXT')):
             self.spam_protect('question', mask, target, args, specialSpamProtect='question', setToNow=True)
             self.save(args={
@@ -741,6 +757,12 @@ class Plugin(object):
 
             %%rancaps TEXT ...
         """
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 1000)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
         if self.spam_protect('textchange', mask, target, args, specialSpamProtect='rancaps'):
             return
         text = " ".join(args.get('TEXT'))
@@ -773,6 +795,12 @@ class Plugin(object):
         """
         if self.spam_protect('mgym', mask, target, args, specialSpamProtect='mgym'):
             return
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 1000)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
         self.bot.privmsg(target, self.GymMarkov.forwardSentence(False, 30, target, includeWord=True))
 
     @command(permission='admin', public=False, show_in_help_list=False)
@@ -800,6 +828,12 @@ class Plugin(object):
 
             %%chain <word>
         """
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 500)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
         if self.spam_protect('chain', mask, target, args, specialSpamProtect='chain'):
             return
         #l = 30
@@ -834,6 +868,12 @@ class Plugin(object):
 
             %%chainf <word>
         """
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 1000)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
         if self.spam_protect('chain', mask, target, args, specialSpamProtect='chain'):
             return
         word = args.get('<word>', False)
@@ -846,6 +886,12 @@ class Plugin(object):
 
             %%chainb <word>
         """
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', 1000)],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
         if self.spam_protect('chain', mask, target, args, specialSpamProtect='chain'):
             return
         word = args.get('<word>', False)
@@ -1886,12 +1932,14 @@ class Plugin(object):
             lst = lists[i]
             for req_name, req_var in lst:
                 if req_name == 'chatpoints_min':
-                    inc_counter_or_response(req_var <= data.get('p', 999999), req_var, i, 'Not enough chatpoints ({})')
-                if req_name == 'chatpoints_max':
-                    inc_counter_or_response(req_var >= data.get('p', 0), req_var, i, 'Too many chatpoints ({})')
-                if req_name == 'is_in_top5':
+                    inc_counter_or_response(req_var <= data.get('p', 999999), req_var, i, 'Not enough chatpoints (min {})')
+                elif req_name == 'chatpoints_max':
+                    inc_counter_or_response(req_var >= data.get('p', 0), req_var, i, 'Too many chatpoints (max {})')
+                elif req_name == 'is_in_top5':
                     inc_counter_or_response(CHATLVL_TOPPLAYERS.get(id, False), req_var, i, 'Not in the list of top chatters')
-                if req_name == 'bot_admin':
+                elif req_name == 'questionpoints_max':
+                    inc_counter_or_response(req_var >= data.get('questions', 0), req_var, i, 'Already got too many points with questions (max {})')
+                elif req_name == 'bot_admin':
                     global ADMINS
                     inc_counter_or_response(id in ADMINS, req_var, i, 'Not an admin')
         granted = (counters[0] == len(all)) or (counters[1] >= 1)
