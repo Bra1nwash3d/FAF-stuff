@@ -1871,8 +1871,6 @@ class Plugin(object):
         :param any: list of options - having any of these returns True, regardless of required
         :param all: list of options - not having all of these returns False
         these lists use (requirement_name, variable)
-        currently implemented:
-
         """
         data = self.Chatpoints.getPointDataById(id)
         responses = []
@@ -1880,22 +1878,22 @@ class Plugin(object):
         counters = [0 for lst in lists]
         nick = id
 
-        def inc_counter_or_response(bool, index, response):
+        def inc_counter_or_response(bool, req_var, index, response):
             if bool: counters[index] += 1
-            else: responses.append(response)
+            else: responses.append(response.format(req_var))
 
         for i in range(0, len(lists)):
             lst = lists[i]
             for req_name, req_var in lst:
                 if req_name == 'chatpoints_min':
-                    inc_counter_or_response(req_var <= data.get('p', 999999), i, 'Not enough chatpoints')
+                    inc_counter_or_response(req_var <= data.get('p', 999999), req_var, i, 'Not enough chatpoints ({})')
                 if req_name == 'chatpoints_max':
-                    inc_counter_or_response(req_var >= data.get('p', 0), i, 'Too many chatpoints')
+                    inc_counter_or_response(req_var >= data.get('p', 0), req_var, i, 'Too many chatpoints ({})')
                 if req_name == 'is_in_top5':
-                    inc_counter_or_response(CHATLVL_TOPPLAYERS.get(id, False), i, 'Not in the list of top chatters')
+                    inc_counter_or_response(CHATLVL_TOPPLAYERS.get(id, False), req_var, i, 'Not in the list of top chatters')
                 if req_name == 'bot_admin':
                     global ADMINS
-                    inc_counter_or_response(id in ADMINS, i, 'Not an admin')
+                    inc_counter_or_response(id in ADMINS, req_var, i, 'Not an admin')
         granted = (counters[0] == len(all)) or (counters[1] >= 1)
         if (not granted) and irc_msg_responses:
             self.bot.privmsg(id, 'Permission to the command not granted due to one or more of the following reasons:')
