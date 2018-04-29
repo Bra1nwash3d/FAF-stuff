@@ -56,6 +56,17 @@ class Events():
     def getData(self, key):
         return self.events.get(key, []) + []
 
+    def getFormattedChattips(self, key, name):
+        eventdata = self.getData(key)
+        tips = {}
+        for tip in eventdata:
+            giver, taker, p = tip.get('giver', '?'), tip.get('taker', '?'), tip.get('points', 0)
+            if name == taker:
+                tips[giver] = tips.get(giver, 0) + p
+            if name == giver:
+                tips[taker] = tips.get(taker, 0) - p
+        return tips
+
     def getFormattedRouletteData(self, key, filtername=False, minparticipants=2):
         eventdata = self.getData(key)
         if filtername:

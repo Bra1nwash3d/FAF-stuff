@@ -28,6 +28,7 @@ from mai.roasts import BHROASTS
 from mai.questions import Questions
 
 
+ADMINS = []
 MAIN_CHANNEL = "#aeolus" #   shadows
 POKER_CHANNEL = "#poker" #   shadows
 IGNOREDUSERS = {}
@@ -212,8 +213,9 @@ class Plugin(object):
     def on_restart(self):
         time.clock()
         t0 = time.clock()
-        global TIMERS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD
+        global TIMERS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD, ADMINS
         global CHATLVLWORDS,  CHATLVLEVENTDATA, CHATLVL_TOPPLAYERS, CHATLVL_EPOCH
+        ADMINS = [n.split('@')[0].replace('!', '').replace('*', '') for n, v in self.bot.config['irc3.plugins.command.masks'].items() if len(v) > 5]
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
@@ -1001,6 +1003,26 @@ class Plugin(object):
             }))
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chattip eof')
+
+    @command(public=False)
+    @asyncio.coroutine
+    def chattipinfo(self, mask, target, args):
+        """ Info about chattips!
+
+            %%chattipinfo <name>
+        """
+        if not (yield from self.__isNickservIdentified(mask.nick)):
+            return
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('is_in_top5', 0)],
+                                     any=[('bot_admin', 0)])
+        if hp:
+            name = args.get('<name>', '')
+            data = self.Chatevents.getFormattedChattips('chattip', name)
+            sorted_data = sorted([(n, v) for n, v in data.items()], reverse=True, key=lambda x: x[1])
+            self.bot.privmsg(mask.nick, 'Chattips of %s. Values >0 indicate that the player received tips from that person' % name)
+            self.bot.privmsg(mask.nick, '; '.join(['%s: %i' % (n, v) for n, v in sorted_data if v != 0]))
 
     @asyncio.coroutine
     def __maskToFafId(self, mask):
@@ -1842,6 +1864,58 @@ class Plugin(object):
         if updateTimer:
             self.timers[cmd][target] = time.time()
         return False
+
+    def has_permissions(self, id, irc_msg_responses=True, all=[], any=[]):
+        """
+        :param irc_msg_responses: message responses if permission is not granted
+        :param any: list of options - having any of these returns True, regardless of required
+        :param all: list of options - not having all of these returns False
+        these lists use (requirement_name, variable)
+        currently implemented:
+
+        """
+        data = self.Chatpoints.getPointDataById(id)
+        responses = []
+        lists = [all, any]
+        counters = [0 for lst in lists]
+        nick = id
+
+        def inc_counter_or_response(bool, index, response):
+            if bool: counters[index] += 1
+            else: responses.append(response)
+
+        for i in range(0, len(lists)):
+            lst = lists[i]
+            for req_name, req_var in lst:
+                if req_name == 'chatpoints_min':
+                    inc_counter_or_response(req_var <= data.get('p', 999999), i, 'Not enough chatpoints')
+                if req_name == 'chatpoints_max':
+                    inc_counter_or_response(req_var >= data.get('p', 0), i, 'Too many chatpoints')
+                if req_name == 'is_in_top5':
+                    inc_counter_or_response(CHATLVL_TOPPLAYERS.get(id, False), i, 'Not in the list of top chatters')
+                if req_name == 'bot_admin':
+                    global ADMINS
+                    inc_counter_or_response(id in ADMINS, i, 'Not an admin')
+        granted = (counters[0] == len(all)) or (counters[1] >= 1)
+        if (not granted) and irc_msg_responses:
+            self.bot.privmsg(id, 'Permission to the command not granted due to one or more of the following reasons:')
+            self.bot.privmsg(id, ', '.join(responses))
+        return granted, responses
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def chattest(self, mask, target, args):
+        """ Testing!
+
+            %%chattest
+        """
+        hp, resp = self.has_permissions(mask.nick,
+                                        irc_msg_responses=True,
+                                        all=[('chatpoints_min', 1000),
+                                             ('chatpoints_min', 2000),
+                                             ('is_in_top5', 0)],
+                                        any=[('bot_admin', 0)])
+
 
     def pickWeightedRandom(self, dct):
         total = sum(dct.values())
