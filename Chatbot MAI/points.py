@@ -80,6 +80,26 @@ class Points():
             'questions' : element.get('questions', False),
         }
 
+    def setOnJoinMsgById(self, id, msg, writeStrength=2, announcementStrength=2, delete=False):
+        # top5 ladder has announcement strength 3 and will thus "win" over a set message
+        ws = self.getById(id).get('on_join_msg', {}).get('writeStrength', 0)
+        if writeStrength >= ws:
+            if delete:
+                self.elements[id]['on_join_msg'] = False
+                del self.elements[id]['on_join_msg']
+            else:
+                self.elements[id]['on_join_msg'] = {
+                    'msg': msg,
+                    'writeStrength': writeStrength,
+                    'announcementStrength': announcementStrength,
+                }
+            return True
+        return False
+
+    def getOnJoinMsgById(self, id):
+        oj = self.getById(id).get('on_join_msg', {})
+        return oj.get('msg', False), oj.get('announcementStrength', 0)
+
     def addNew(self, id, name=False, data={}):
         """
         :param id: id of new element, will become name unless specified otherwise

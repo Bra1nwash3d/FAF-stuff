@@ -98,16 +98,20 @@ class Plugin(object):
 
     @irc3.event(irc3.rfc.JOIN)
     def on_join(self, channel, mask):
-        #print('join', channel, mask)
-        global CHATLVL_TOPPLAYERS
-        if CHATLVL_TOPPLAYERS.get(mask.nick, False):
-            if mask.nick == self.bot.config['nick']:
-                return
-            self.bot.action(channel, "Behold! {name}, currently rank {rank} on the chatlvl ladder, joined this chat!".format(**{
+        if mask.nick == self.bot.config['nick']:
+            return
+        global CHATLVL_TOPPLAYERS, MAIN_CHANNEL
+        if channel != MAIN_CHANNEL:
+            return
+        msg, msgstrength = self.Chatpoints.getOnJoinMsgById(mask.nick)
+        if msgstrength < 3:
+            if CHATLVL_TOPPLAYERS.get(mask.nick, False):
+                msg = "Behold! {name}, currently rank {rank} on the chatlvl ladder, joined this chat!"
+        if msg:
+            self.bot.action(channel, msg.format(**{
                 "name" : mask.nick,
                 "rank" : str(CHATLVL_TOPPLAYERS.get(mask.nick, -1))
             }))
-        pass
 
     def __addText(self, text):
         try:
@@ -1496,6 +1500,46 @@ class Plugin(object):
         CHATLVL_COMMANDLOCK.release()
         self.debugPrint('commandlock release chatbetadmin eof')
 
+    @command(permission='admin', show_in_help_list=False, public=False)
+    def onjoinmsgadmin(self, mask, target, args):
+        """ To manage join messages for the main chat
+            usually setting with strength 2, which is below top5 announcements (which has 3)
+
+            %%onjoinmsgadmin get <name>
+            %%onjoinmsgadmin del <name>
+            %%onjoinmsgadmin set <name> <strength> TEXT ...
+        """
+        get, delete, set = args.get('get'), args.get('delete'), args.get('set')
+        name, strength, text = args.get('<name>'), args.get('<strength>', 2), ' '.join(args.get('TEXT'))
+        if get:
+            msg, strength = self.Chatpoints.getOnJoinMsgById(name)
+            if msg:
+                self.bot.privmsg(mask.nick, 'User "{name}" has on_join message "{msg}" set with strength {str}'.format(**{
+                    'name': name,
+                    'msg': msg,
+                    'str': strength,
+                }))
+            else:
+                self.bot.privmsg(mask.nick, 'There is no on_join message for this user!')
+        if delete:
+            self.Chatpoints.setOnJoinMsgById(name, '', delete=True)
+            self.bot.privmsg(mask.nick, 'The on_join message for this user was removed!')
+        if set:
+            if not '{name}' in text:
+                self.bot.privmsg(mask.nick, 'The on_join does not contain "{name}"! This is required!')
+                return
+            try:
+                strength = int(strength)
+            except:
+                strength = 2
+                self.bot.privmsg(mask.nick, 'Failed reading strength! Set to default 2!')
+            ans = self.Chatpoints.setOnJoinMsgById(mask.nick, text, writeStrength=strength,
+                                                   announcementStrength=strength, delete=False)
+            if ans:
+                self.bot.privmsg(mask.nick, 'The on_join message for this user was set successfullly!')
+            else:
+                self.bot.privmsg(mask.nick, 'Something went wrong! (probably lower writing strength than needed)')
+
     @command
     @asyncio.coroutine
     def chatbet(self, mask, target, args):
@@ -2090,7 +2134,7 @@ class Plugin(object):
         words = ["join", "leave", "files", "cd", "vars", "savedb", "twitchjoin", "twitchleave",\
                  "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin",\
                  "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart",\
-                 "chatgamesadmin", "chatlvlchannels", "chattipadmin", "chatbetadmin"]
+                 "chatgamesadmin", "chatlvlchannels", "chattipadmin", "chatbetadmin", "onjoinmsgadmin"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         #for word in words:
         #    self.bot.privmsg(mask.nick, "- " + word)
