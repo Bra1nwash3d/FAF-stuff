@@ -1533,7 +1533,7 @@ class Plugin(object):
             except:
                 strength = 2
                 self.bot.privmsg(mask.nick, 'Failed reading strength! Set to default 2!')
-            ans = self.Chatpoints.setOnJoinMsgById(mask.nick, text, writeStrength=strength,
+            ans = self.Chatpoints.setOnJoinMsgById(name, text, writeStrength=strength,
                                                    announcementStrength=strength, delete=False)
             if ans:
                 self.bot.privmsg(mask.nick, 'The on_join message for this user was set successfullly!')
