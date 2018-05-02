@@ -36,7 +36,9 @@ CDPRIVILEDGEDUSERS = {}
 NICKSERVIDENTIFIEDRESPONSES = {}
 NICKSERVRESPONSESLOCK = None
 TIMERS = {}
+VARS = {}
 DEFAULTCD = False
+DEFAULTVALUE = False
 
 RENAMED_REGEX_NAMES = re.compile("<td>.*?</td>")
 RENAMED_REGEX_CURRENTNAME = re.compile("<br /><b>.*?</b>")
@@ -213,21 +215,26 @@ class Plugin(object):
     def on_restart(self):
         time.clock()
         t0 = time.clock()
-        global TIMERS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD, ADMINS
+        global TIMERS, VARS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD, DEFAULTVALUE, ADMINS
         global CHATLVLWORDS,  CHATLVLEVENTDATA, CHATLVL_TOPPLAYERS, CHATLVL_EPOCH
         ADMINS = [n.split('@')[0].replace('!', '').replace('*', '') for n, v in self.bot.config['irc3.plugins.command.masks'].items() if len(v) > 5]
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
+        DEFAULTVALUE = self.bot.config.get('default_command_point_requirement', 500)
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
         for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder',
                   'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
+        for t in ['cmd_chain_points_min', 'cmd_chainf_points_min', 'cmd_chainb_points_min', 'cmd_chain_points_min',
+                  'cmd_rancaps_points_min', 'cmd_answer_qpoints_max', 'cmd_bhroast_points_min', 'cmd_rearrange_points_min']:
+            self.__dbAdd(['vars'], t, DEFAULTVALUE, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
         self.__dbAdd(['chatlvlmisc'], 'epoch', 1, overwriteIfExists=False, save=True)
         IGNOREDUSERS = self.__dbGet(['ignoredusers'])
         CHATLVL_TOPPLAYERS = self.__dbGet(['chatlvltopplayers'])
         TIMERS = self.__dbGet(['timers'])
+        VARS = self.__dbGet(['vars'])
         CHATLVLWORDS = self.__dbGet(['chatlvlwords'])
         CHATLVLWORDS = self.__dbGet(['chatlvlwords'])
         CDPRIVILEDGEDUSERS = self.__dbGet(['cdprivilege'])
@@ -486,6 +493,30 @@ class Plugin(object):
 
     @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
+    def vars(self, mask, target, args):
+        """ Set vars, mostly point requirements
+
+            %%vars get
+            %%vars get <var>
+            %%vars set <var> <value>
+        """
+        if not (yield from self.__isNickservIdentified(mask.nick)):
+            return
+        get, set, var, value = args.get('get'), args.get('set'), args.get('<var>'), args.get('<value>')
+        global VARS, DEFAULTVALUE
+        if get:
+            if var:
+                self.bot.privmsg(mask.nick, 'The value for "' + var + '" is set to ' + str(VARS.get(var, DEFAULTVALUE)))
+            else:
+                for key in VARS.keys():
+                    self.bot.privmsg(mask.nick, 'The value for "' + key + '" is set to ' + str(VARS.get(key, DEFAULTVALUE)))
+        if set:
+            VARS[var] = int(value)
+            self.__dbAdd(['vars'], var, VARS[var], save=True)
+            self.bot.privmsg(mask.nick, 'The value for "' + var + '" is now changed to ' + str(VARS[var]))
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
     def savedb(self, mask, target, args):
         """ Saves to the db, takes a while, no abuse please
 
@@ -677,7 +708,7 @@ class Plugin(object):
         """
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 500)],
+                                     all=[('chatpoints_min', VARS.get('cmd_rearrange_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if not hp:
             return
@@ -703,7 +734,7 @@ class Plugin(object):
             return
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 250)],
+                                     all=[('chatpoints_min', VARS.get('cmd_bhroast_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if hp:
             self.bot.privmsg(target, "%s" % random.choice(BHROASTS))
@@ -739,7 +770,7 @@ class Plugin(object):
         """
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('questionpoints_max', 500)],
+                                     all=[('questionpoints_max', VARS.get('cmd_answer_qpoints_max', DEFAULTVALUE))],
                                      any=[('bot_admin', 0)])
         if not hp:
             return
@@ -759,7 +790,7 @@ class Plugin(object):
         """
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 1000)],
+                                     all=[('chatpoints_min', VARS.get('cmd_rancaps_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if not hp:
             return
@@ -797,7 +828,7 @@ class Plugin(object):
             return
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 1000)],
+                                     all=[('chatpoints_min', VARS.get('cmd_mgym_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if not hp:
             return
@@ -830,7 +861,7 @@ class Plugin(object):
         """
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 500)],
+                                     all=[('chatpoints_min', VARS.get('cmd_chain_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if not hp:
             return
@@ -870,7 +901,7 @@ class Plugin(object):
         """
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 1000)],
+                                     all=[('chatpoints_min', VARS.get('cmd_chainf_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if not hp:
             return
@@ -888,7 +919,7 @@ class Plugin(object):
         """
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
-                                     all=[('chatpoints_min', 1000)],
+                                     all=[('chatpoints_min', VARS.get('cmd_chainb_points_min', DEFAULTVALUE))],
                                      any=[('bot_admin', 0), ('is_in_top5', 0)])
         if not hp:
             return
@@ -2056,7 +2087,7 @@ class Plugin(object):
         """Actually shows hidden commands
             %%hidden
         """
-        words = ["join", "leave", "files", "cd", "savedb", "twitchjoin", "twitchleave",\
+        words = ["join", "leave", "files", "cd", "vars", "savedb", "twitchjoin", "twitchleave",\
                  "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin",\
                  "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart",\
                  "chatgamesadmin", "chatlvlchannels", "chattipadmin", "chatbetadmin"]
