@@ -227,7 +227,7 @@ class Plugin(object):
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
         for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder',
-                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags']:
+                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags', 'spam_cats']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         for t in ['cmd_chain_points_min', 'cmd_chainf_points_min', 'cmd_chainb_points_min', 'cmd_chain_points_min',
                   'cmd_rancaps_points_min', 'cmd_answer_qpoints_max', 'cmd_bhroast_points_min', 'cmd_rearrange_points_min']:
@@ -2053,13 +2053,6 @@ class Plugin(object):
                 return key, total
         return dct.keys()[len(dct)-1], total
 
-    def __genericSpamCommand(self, mask, target, args, path, specialSpamProtect=None):
-        if self.spam_protect("-".join(path), mask, target, args, specialSpamProtect=specialSpamProtect):
-            return
-        elems = self.__getRandomDictElements(self.__dbGet(path), 1)
-        if len(elems) > 0:
-            self.bot.privmsg(target, elems[0])
-
     @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
     def chatlvlchannels(self, mask, target, args):
@@ -2069,6 +2062,33 @@ class Plugin(object):
             %%chatlvlchannels del <ID>
         """
         return self.__genericCommandManage(mask, target, args, ['chatlvlchannels'])
+
+    @command
+    @asyncio.coroutine
+    def cats(self, mask, target, args):
+        """Show a cats image
+            %%cats
+        """
+        self.__genericSpamCommand(mask, target, args, ['spam', 'cats'], specialSpamProtect='spam_cats')
+
+    @command(permission='admin', public=False)
+    @asyncio.coroutine
+    def catsadmin(self, mask, target, args):
+        """Adds/removes a given text from the quotelist.
+            %%catsadmin get
+            %%catsadmin add TEXT ...
+            %%catsadmin del <ID>
+        """
+        return self.__genericCommandManage(mask, target, args, ['spam', 'cats'])
+
+    def __genericSpamCommand(self, mask, target, args, path, specialSpamProtect=None):
+        if self.spam_protect("-".join(path), mask, target, args, specialSpamProtect=specialSpamProtect):
+            return
+        try:
+            elem = random.choice(list(self.__dbGet(path).values()))
+            self.bot.privmsg(target, elem)
+        except:
+            self.debugPrint('__genericSpamCommand: Trying to sample from empty list: ' + repr(path))
 
     def __genericCommandManage(self, mask, target, args, path, allowSameValue=False):
         """
@@ -2138,7 +2158,7 @@ class Plugin(object):
             %%hidden
         """
         words = ["join", "leave", "files", "cd", "vars", "savedb", "twitchjoin", "twitchleave",\
-                 "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin",\
+                 "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin", "catsadmin",\
                  "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart",\
                  "chatgamesadmin", "chatlvlchannels", "chattipadmin", "chatbetadmin", "onjoinmsgadmin"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
