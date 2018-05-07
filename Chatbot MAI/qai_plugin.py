@@ -754,6 +754,9 @@ class Plugin(object):
             %%question TAGS...
         """
         get_tags, tags, abandon = args.get('tags'), args.get('TAGS'), args.get('abandon')
+        global MAIN_CHANNEL
+        if not target == MAIN_CHANNEL:
+            return
         if get_tags:
             if self.spam_protect('question-tags', mask, target, args, specialSpamProtect='question-tags'):
                 return
@@ -772,6 +775,9 @@ class Plugin(object):
 
             %%answer TEXT ...
         """
+        global MAIN_CHANNEL
+        if not target == MAIN_CHANNEL:
+            return
         hp, _ = self.has_permissions(mask.nick,
                                      irc_msg_responses=True,
                                      all=[('questionpoints_max', VARS.get('cmd_answer_qpoints_max', DEFAULTVALUE))],
