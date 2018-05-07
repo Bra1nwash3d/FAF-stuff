@@ -1509,7 +1509,7 @@ class Plugin(object):
             %%onjoinmsgadmin del <name>
             %%onjoinmsgadmin set <name> <strength> TEXT ...
         """
-        get, delete, set = args.get('get'), args.get('delete'), args.get('set')
+        get, delete, set = args.get('get'), args.get('del'), args.get('set')
         name, strength, text = args.get('<name>'), args.get('<strength>', 2), ' '.join(args.get('TEXT'))
         if get:
             msg, strength = self.Chatpoints.getOnJoinMsgById(name)
