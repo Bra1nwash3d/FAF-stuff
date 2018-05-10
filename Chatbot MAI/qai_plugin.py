@@ -147,7 +147,6 @@ class Plugin(object):
     @asyncio.coroutine
     def on_kick(self, *args, **kwargs):
         kicktarget = kwargs['target']
-        print('kick', kicktarget)
         global CHATPOINTS_REMOVAL_IF_KICKED
         if not (kicktarget == self.bot.config['nick']):
             self.Chatevents.addEvent('kick', {
@@ -155,6 +154,12 @@ class Plugin(object):
                 'points' : CHATPOINTS_REMOVAL_IF_KICKED
             })
             self.Chatpoints.updatePointsById(kicktarget, -CHATPOINTS_REMOVAL_IF_KICKED, partial=True)
+            self.bot.privmsg(kicktarget, 'You got kicked from {channel} by {nick} with reason "{reason}" and lost up to {p} chatpoints!'.format(**{
+                'channel': kwargs.get('channel', '?'),
+                'nick': kwargs.get('mask').nick,
+                'reason': kwargs.get('data', '?'),
+                'p': str(CHATPOINTS_REMOVAL_IF_KICKED),
+            }))
 
     @irc3.event(irc3.rfc.MODE)
     @asyncio.coroutine
