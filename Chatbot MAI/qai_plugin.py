@@ -2076,7 +2076,7 @@ class Plugin(object):
         """
         self.__genericSpamCommand(mask, target, args, ['spam', 'cats'], specialSpamProtect='spam_cats')
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
     def catsadmin(self, mask, target, args):
         """Adds/removes a given text from the quotelist.
