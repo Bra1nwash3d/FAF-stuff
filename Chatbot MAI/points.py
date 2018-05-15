@@ -248,7 +248,11 @@ class Points():
         remainingName = remaining['n']
         removed = self.addNewIfNotExisting(mergeRemovedId)
         for key in removed.keys():
-            remaining[key] = remaining.get(key, 0) + removed[key]
+            # try adding first (points, stats), otherwise replace (strings, e.g. onjoin message)
+            try:
+                remaining[key] = remaining.get(key, 0) + removed[key]
+            except:
+                remaining[key] = removed[key]
         remaining['n'] = remainingName
         del self.elements[mergeRemovedId]
         self.update_lock.release()

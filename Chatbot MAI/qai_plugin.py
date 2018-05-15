@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import random
 import asyncio
-import requests
+import urllib
 import re
 
 import irc3
@@ -40,8 +40,7 @@ VARS = {}
 DEFAULTCD = False
 DEFAULTVALUE = False
 
-RENAMED_REGEX_NAMES = re.compile("<td>.*?</td>")
-RENAMED_REGEX_CURRENTNAME = re.compile("<br /><b>.*?</b>")
+RENAME_API_URL = "https://api.faforever.com/data/player/{id}?include=names&fields[nameRecord]=name"
 
 NICKSERV_WAIT_TICKS = 60
 
@@ -1932,35 +1931,27 @@ class Plugin(object):
 
             %%helpirenamed
         """
-        global RENAMED_REGEX_NAMES, RENAMED_REGEX_CURRENTNAME
-        # try:
-        r = requests.post("http://app.faforever.com/faf/userName.php", data={'name': mask.nick})
-        data = RENAMED_REGEX_NAMES.findall(r.text)
-        renames = []
-        for i in range(int(len(data) / 2)):
-            name = data[i * 2]
-            until = data[i * 2 + 1]
-            d = {
-                'name': name[4:len(name) - 5],
-                'until': until[4:len(until) - 5],
-            }
-            renames.append(d)
-        if len(renames) <= 1:
+        global RENAME_API_URL
+        past_names = []
+        try:
+            user_id = int(str(mask).split('@')[0].split('!')[1])
+            with urllib.request.urlopen(RENAME_API_URL.format(**{
+                'id': user_id
+            })) as response:
+                ans = json.loads(response.read().decode())
+                for name in ans['included']:
+                    if name['type'] == 'nameRecord':
+                        past_names.append(name['attributes']['name'])
+        except:
+            pass
+        if len(past_names) < 1:
             self.bot.privmsg(mask.nick, 'You have not changed your name, or FAF does not know about you.')
             return
         else:
-            currentName = renames[-1]['name']
-            previousName = renames[-2]['name']
-            r = requests.post("http://app.faforever.com/faf/userName.php", data={'name': previousName})
-            r2 = RENAMED_REGEX_CURRENTNAME.findall(r.text)
-            if len(r2) == 0:
-                self.bot.privmsg(mask.nick, 'Your previous nickname (' + previousName + ') seems to be taken.')
-                return
-            if (str(r2[0][9:len(r2[0])-4]) == str(mask.nick)) and (str(mask.nick) == str(currentName)):
-                self.bot.privmsg(mask.nick, 'Confirmed! Merging with data of ' + previousName + '!')
-                self.Chatpoints.merge(mask.nick, previousName)
-            else:
-                self.bot.privmsg(mask.nick, 'Something went wrong! :(')
+            previous_name = past_names[-1]
+            self.bot.privmsg(mask.nick, 'Confirmed! Merging with data of ' + previous_name + '!')
+            self.Chatpoints.merge(mask.nick, previous_name)
+            # TODO: check if previous_name is taken by someone
 
     def getUnpingableName(self, name):
         return name[0:len(name)-1] + '.' + name[len(name)-1]
