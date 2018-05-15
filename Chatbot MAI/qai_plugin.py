@@ -103,15 +103,16 @@ class Plugin(object):
         global CHATLVL_TOPPLAYERS, MAIN_CHANNEL
         if channel != MAIN_CHANNEL:
             return
-        msg, msgstrength = self.Chatpoints.getOnJoinMsgById(mask.nick)
+        nick = mask.nick
+        msg, msgstrength = self.Chatpoints.getOnJoinMsgById(nick)
         if msgstrength < 3:
-            if CHATLVL_TOPPLAYERS.get(mask.nick, False):
+            if CHATLVL_TOPPLAYERS.get(nick, False):
                 msg = "Behold! {name}, currently rank {rank} on the chatlvl ladder, joined this chat!"
-        if msg:
-            self.bot.action(channel, msg.format(**{
-                "name" : mask.nick,
-                "rank" : str(CHATLVL_TOPPLAYERS.get(mask.nick, -1))
-            }))
+        if msg and (not self.spam_protect('onjoin-'+nick, mask, channel, {}, specialSpamProtect='onjoin', ircSpamProtect=False)):
+                self.bot.action(channel, msg.format(**{
+                    "name" : nick,
+                    "rank" : str(CHATLVL_TOPPLAYERS.get(nick, -1))
+                }))
 
     def __addText(self, text):
         try:
@@ -232,7 +233,7 @@ class Plugin(object):
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
         for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder',
-                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags', 'spam_cats']:
+                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags', 'spam_cats', 'onjoin']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         for t in ['cmd_chain_points_min', 'cmd_chainf_points_min', 'cmd_chainb_points_min', 'cmd_chain_points_min',
                   'cmd_rancaps_points_min', 'cmd_answer_qpoints_max', 'cmd_bhroast_points_min', 'cmd_rearrange_points_min']:
