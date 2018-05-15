@@ -41,6 +41,7 @@ DEFAULTCD = False
 DEFAULTVALUE = False
 
 RENAME_API_URL = "https://api.faforever.com/data/player/{id}?include=names&fields[nameRecord]=name"
+RENAME_API_URL_NAME = "https://api.faforever.com/data/player?filter=(login=={name})"
 
 NICKSERV_WAIT_TICKS = 60
 
@@ -1932,7 +1933,7 @@ class Plugin(object):
 
             %%helpirenamed
         """
-        global RENAME_API_URL
+        global RENAME_API_URL, RENAME_API_URL_NAME
         past_names = []
         try:
             user_id = int(str(mask).split('@')[0].split('!')[1])
@@ -1948,11 +1949,21 @@ class Plugin(object):
         if len(past_names) < 1:
             self.bot.privmsg(mask.nick, 'You have not changed your name, or FAF does not know about you.')
             return
-        else:
-            previous_name = past_names[-1]
-            self.bot.privmsg(mask.nick, 'Confirmed! Merging with data of ' + previous_name + '!')
-            self.Chatpoints.merge(mask.nick, previous_name)
-            # TODO: check if previous_name is taken by someone
+        previous_name = past_names[-1]
+        try:
+            # check if the name is taken by someone
+            with urllib.request.urlopen(RENAME_API_URL_NAME.format(**{
+                'name': previous_name
+            })) as response:
+                ans = json.loads(response.read().decode())
+                if ans is None or (not ans.get('data', False)):
+                    self.bot.privmsg(mask.nick, 'Confirmed! Merging with data of ' + previous_name + '!')
+                    self.Chatpoints.merge(mask.nick, previous_name)
+                else:
+                    self.bot.privmsg(mask.nick, 'Your previous name "{}" is currently taken!'.format(previous_name))
+        except:
+            self.bot.privmsg(mask.nick, 'Something went wrong :(')
+            return
 
     def getUnpingableName(self, name):
         return name[0:len(name)-1] + '.' + name[len(name)-1]
