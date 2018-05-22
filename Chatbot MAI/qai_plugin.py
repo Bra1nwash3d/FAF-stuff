@@ -233,11 +233,13 @@ class Plugin(object):
         self.__dbAdd([], 'ignoredusers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'cdprivilege', {}, overwriteIfExists=False, save=False)
         for t in ['chain', 'chainprob', 'textchange', 'twitchchain', 'generate', 'chattip', 'chatlvl', 'chatladder',
-                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags', 'spam_cats', 'onjoin']:
+                  'chatgames', 'chatbet', 'toGroup', 'roast', 'question', 'question-tags', 'spam_cats', 'onjoin',
+                  'font', 'rancaps', 'ranspace']:
             self.__dbAdd(['timers'], t, DEFAULTCD, overwriteIfExists=False, save=False)
         for t in ['cmd_chain_points_min', 'cmd_chainf_points_min', 'cmd_chainb_points_min', 'cmd_chain_points_min',
                   'cmd_rancaps_points_min', 'cmd_answer_qpoints_max', 'cmd_bhroast_points_min', 'cmd_rearrange_points_min',
-                  'cmd_mgym_points_min']:
+                  'cmd_mgym_points_min', 'cmd_font_points_min',
+                  'cmd_ranspace_points_min', 'cmd_ranspace_min_spaces', 'cmd_ranspace_max_spaces']:
             self.__dbAdd(['vars'], t, DEFAULTVALUE, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvltopplayers', {}, overwriteIfExists=False, save=False)
         self.__dbAdd([], 'chatlvlwords', {}, overwriteIfExists=False, save=False)
@@ -821,6 +823,55 @@ class Plugin(object):
                 rtext += l
             else:
                 rtext += l.capitalize()
+        self.bot.privmsg(target, rtext)
+
+    @command()
+    @asyncio.coroutine
+    def ranspace(self, mask, target, args):
+        """Add spaces between letters in words
+
+            %%ranspace TEXT ...
+        """
+        if self.is_main_channel(mask, target, irc_pm_if_channel=True):
+            return
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', VARS.get('cmd_ranspace_points_min', DEFAULTVALUE))],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
+        if self.spam_protect('textchange', mask, target, args, specialSpamProtect='ranspace'):
+            return
+        text = "".join(args.get('TEXT'))
+        rtext = ""
+        min_spaces, max_spaces = VARS.get('cmd_ranspace_min_spaces', 0), VARS.get('cmd_ranspace_max_spaces', 2)
+        for l in text:
+            rtext += " "*random.randint(min_spaces, max_spaces) + l
+        self.bot.privmsg(target, rtext)
+
+    @command(permission='admin')
+    @asyncio.coroutine
+    def font(self, mask, target, args):
+        """Change the font!
+
+            %%font TEXT ...
+        """
+        if self.is_main_channel(mask, target, irc_pm_if_channel=True):
+            return
+        hp, _ = self.has_permissions(mask.nick,
+                                     irc_msg_responses=True,
+                                     all=[('chatpoints_min', VARS.get('cmd_font_points_min', DEFAULTVALUE))],
+                                     any=[('bot_admin', 0), ('is_in_top5', 0)])
+        if not hp:
+            return
+        if self.spam_protect('textchange', mask, target, args, specialSpamProtect='font'):
+            return
+        text = " ".join(args.get('TEXT'))
+        text = text.lower()
+        std_font = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+        jap_font = ['卂', '乃', '匚', '刀', '乇', '下', '厶', '卄', '工', '丁', '长', '乚', '从', '𠘨', '口', '尸', '㔿', '尺', '丂', '丅', '凵', 'リ', '山', '乂', '丫', '乙']
+        font = dict(zip(std_font, jap_font))
+        rtext = "".join([font.get(l, l) for l in text])
         self.bot.privmsg(target, rtext)
 
     @command()
@@ -1999,6 +2050,14 @@ class Plugin(object):
             return True
         if updateTimer:
             self.timers[cmd][target] = time.time()
+        return False
+
+    def is_main_channel(self, mask, target, irc_pm_if_channel=True):
+        global MAIN_CHANNEL
+        if target == MAIN_CHANNEL:
+            if irc_pm_if_channel:
+                self.bot.privmsg(mask.nick, "This command is not available in {}!".format(MAIN_CHANNEL))
+            return True
         return False
 
     def has_permissions(self, id, irc_msg_responses=True, all=[], any=[]):
