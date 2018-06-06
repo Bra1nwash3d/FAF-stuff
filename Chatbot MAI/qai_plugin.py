@@ -37,6 +37,7 @@ NICKSERVIDENTIFIEDRESPONSES = {}
 NICKSERVRESPONSESLOCK = None
 TIMERS = {}
 VARS = {}
+REACTION_WORDS = {}
 DEFAULTCD = False
 DEFAULTVALUE = False
 
@@ -140,6 +141,14 @@ class Plugin(object):
                 self.bot.action(channel, "blushes and reveals http://i.imgur.com/IOnpStK.png")
             return
         if channel.startswith("#") and not sender.nick in IGNOREDUSERS.values():
+            lowercase_msg = msg.lower()
+            for reaction_word in REACTION_WORDS:
+                if reaction_word in lowercase_msg:
+                    if self.spam_protect('rword-' + reaction_word, sender, channel, args, ircSpamProtect=False):
+                        continue
+                    self.bot.privmsg(channel, REACTION_WORDS[reaction_word].format(**{
+                        "sender": sender.nick,
+                    }))
             self.update_chatlevels(sender, channel, msg)
 #            if channel == MAIN_CHANNEL:
 #                self.AeolusMarkov.addLine(msg)
@@ -225,7 +234,7 @@ class Plugin(object):
     def on_restart(self):
         time.clock()
         t0 = time.clock()
-        global TIMERS, VARS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD, DEFAULTVALUE, ADMINS
+        global TIMERS, VARS, IGNOREDUSERS, DEFAULTC, CDPRIVILEDGEDUSERS, DEFAULTCD, DEFAULTVALUE, ADMINS, REACTION_WORDS
         global CHATLVLWORDS,  CHATLVLEVENTDATA, CHATLVL_TOPPLAYERS, CHATLVL_EPOCH
         ADMINS = [n.split('@')[0].replace('!', '').replace('*', '') for n, v in self.bot.config['irc3.plugins.command.masks'].items() if len(v) > 5]
         DEFAULTCD = self.bot.config.get('spam_protect_time', 600)
@@ -252,6 +261,7 @@ class Plugin(object):
         CHATLVLWORDS = self.__dbGet(['chatlvlwords'])
         CDPRIVILEDGEDUSERS = self.__dbGet(['cdprivilege'])
         CHATLVL_EPOCH = self.__dbGet(['chatlvlmisc', 'epoch'])
+        REACTION_WORDS = self.__dbGet(['reactionwords', 'words'])
         self.AeolusMarkov = Markov(self, self.bot.config.get('markovwordsstorage_chat', './dbmarkovChat.json'))
         print('loaded aeolus markov, info:', self.AeolusMarkov.getInfo())
         self.ChangelogMarkov = Markov(self, self.bot.config.get('markovwordsstorage_changelog', './dbmarkovChangelogs.json'))
@@ -359,6 +369,44 @@ class Plugin(object):
             args.get('<mode>'),
             args.get('<nick>'),
         ), nowait=True)
+
+    @command(permission='admin', public=False, show_in_help_list=False)
+    @asyncio.coroutine
+    def reactionwords(self, mask, target, args):
+        """Adds/removes a given keyword from the checklist.
+        "{sender}" in the reply text will be replaced by the name of the person who triggered the response.
+            %%reactionwords get
+            %%reactionwords add <word> REPLY ...
+            %%reactionwords del <word>
+        """
+        if not (yield from self.__isNickservIdentified(mask.nick)):
+            return
+        global REACTION_WORDS
+        add, delete, get, word, reply = args.get('add'), args.get('del'), args.get('get'), args.get('<word>'), " ".join(
+            args.get('REPLY'))
+        if add:
+            try:
+                REACTION_WORDS, _, _ = self.__dbAdd(['reactionwords', 'words'], word.lower(), reply)
+                return 'Added "{word}" to watched reactionwords with reply: "{reply}"'.format(**{
+                    "word": word,
+                    "reply": reply,
+                })
+            except Exception as ex:
+                return "Failed adding the word."
+        elif delete:
+            words = self.__dbGet(['reactionwords', 'words'])
+            if words.get(word):
+                REACTION_WORDS = self.__dbDel(['reactionwords', 'words'], word)
+                return 'Removed "{word}" from watched reactionwords'.format(**{
+                    "word": word,
+                })
+            else:
+                return 'Word not found in the list.'
+        elif get:
+            words = self.__dbGet(['reactionwords', 'words'])
+            self.bot.privmsg(mask.nick, str(len(words)) + " checked reactionwords:")
+            for word in words.keys():
+                self.bot.privmsg(mask.nick, '- word: "%s", reply: %s' % (word, words[word]))
 
     @command(show_in_help_list=False, public=False)
     @asyncio.coroutine
@@ -2227,7 +2275,7 @@ class Plugin(object):
         """
         words = ["join", "leave", "files", "cd", "vars", "savedb", "twitchjoin", "twitchleave",\
                  "twitchmsg", "list", "ignore", "cdprivilege", "chainadmin", "catsadmin",\
-                 "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart",\
+                 "chatlvlwords", "chatlvlpoints", "chatslap", "maibotapi", "restart", "reactionwords",\
                  "chatgamesadmin", "chatlvlchannels", "chattipadmin", "chatbetadmin", "onjoinmsgadmin"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         #for word in words:
