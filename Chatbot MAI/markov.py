@@ -2,6 +2,7 @@ import json
 import codecs
 import random
 import traceback
+import io
 
 
 MINCHAINLENGTH = 4
@@ -15,7 +16,7 @@ class Markov():
         self.wordfilepath = wordfilepath
         self.markovwords = {}
         try:
-            with open(self.wordfilepath, 'r+') as file:
+            with codecs.open(self.wordfilepath, mode='r+', encoding='utf8') as file:
                 self.markovwords = json.load(file)
         except Exception:
             print(traceback.format_exc())
@@ -27,8 +28,8 @@ class Markov():
     def save(self, path=False):
         if not path:
             path = self.wordfilepath
-        with open(path, 'w+') as file:
-            json.dump(self.markovwords, file, indent=2)
+        with io.open(path, 'w+', encoding='utf8') as file:
+            file.write(json.dumps(self.markovwords, file, indent=2, ensure_ascii=False))
             file.close()
 
     def addFile(self, filename, filetype="LOG"):
