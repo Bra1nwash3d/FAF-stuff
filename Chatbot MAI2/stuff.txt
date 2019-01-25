@@ -1,0 +1,17 @@
+effects class (has id, name, stack_id) and inbuilt timer with feedback (register in some sorted queue)
+dict in chatentity to hold via stack_id, recalc multipliers whenever effects change
+
+new point types for GAME, ROULETTE, POKER etc, they may even stack!
+
+cache recent chatladder for join announcements
+add announcement strings to chatentity
+
+disable point farming in certain channels
+
+
+
+
+
+
+maybe:
+eventsbase with IOBtree? maybe more efficient, gotta test some time
