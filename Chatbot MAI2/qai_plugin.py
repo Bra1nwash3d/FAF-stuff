@@ -71,6 +71,7 @@ class Plugin(object):
         except:
             self.db_root.chatbase = chatbase.Chatbase(self.db_root.eventbase, self.db_root.spam_protect)
         # TODO run connection.cacheMinimize() every once in a while
+        level_to_points(500)  # cache levels up to 500
         global NICKSERVRESPONSESLOCK
         NICKSERVRESPONSESLOCK = threading.Lock()
 
