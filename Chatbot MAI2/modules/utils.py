@@ -34,3 +34,7 @@ def time_to_str(seconds: int) -> str:
     if m > 0:
         return "%02dm:%02ds" % (m, s)
     return "%02ds" % s
+
+
+def not_pinging_name(name):
+    return '%s%s%s' % (name[0:len(name)-1], '.', name[len(name)-1])

@@ -19,7 +19,6 @@ logger = get_logger.get_logger('main')
 
 ADMINS = []  # only required until commands are available to the public
 MAIN_CHANNEL = '#aeolus'
-DEFAULTVALUE = 500
 
 NICKSERV_WAIT_TICKS = 60
 NICKSERVIDENTIFIEDRESPONSES = {}
@@ -159,7 +158,7 @@ class Plugin(object):
         t0 = time.clock()
 
         # TODO get rid of global vars
-        global NICKSERVRESPONSESLOCK, IGNOREDUSERS, ADMINS, DEFAULTVALUE
+        global NICKSERVRESPONSESLOCK, IGNOREDUSERS, ADMINS
         NICKSERVRESPONSESLOCK = threading.Lock()
 
         # default vars for cooldowns, some costs, requirements  # TODO make command to modify
@@ -171,6 +170,10 @@ class Plugin(object):
             self.__db_add(['vars'], k, v, overwrite_if_exists=False, save=False)
         # for t in ['chattip', 'chatlvl', 'chatladder']:
         #     self.__db_add(['timers'], t, default_cd, overwrite_if_exists=False, save=False)
+
+        # forcefully add some silent bots to the entity list, so events etc register correctly
+        for n in ['AeonCommander', 'CybranCommander', 'UefCommander', 'SeraCommander']:
+            self.db_root.chatbase.add(n, n)
 
         # add misc other defaults/paths to db.json
         self.__db_add([], 'ignoredusers', {}, overwrite_if_exists=False, save=False)

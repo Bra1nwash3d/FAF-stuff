@@ -2,6 +2,7 @@ import BTrees.OOBTree
 import persistent.list
 import transaction
 from heapq import nlargest, nsmallest
+from modules.utils import *
 from modules.chatentity import ChatEntity
 from modules.types import PointType
 from modules.get_logger import get_logger
@@ -35,6 +36,10 @@ class Chatbase(persistent.Persistent):
         self._p_changed = True
         transaction.commit()
 
+    def add(self, id_, nick):
+        e = self.get(id_)
+        e.nick = nick
+
     def get(self, id_, is_nick=False) -> ChatEntity:
         """ get an entity of id, create if not existing """
         id_ = id_ if not is_nick else self.nick_to_id.get(id_, id_)
@@ -62,7 +67,7 @@ class Chatbase(persistent.Persistent):
         return fun(k, self.entities.values(), key=lambda e: e.get_points(point_type) if _cond(e) else default)
 
     def get_k_points_str(self, point_type=None, **kwargs) -> str:
-        return ', '.join(['(%s, %d)' % (e.nick, e.get_points(point_type))
+        return ', '.join(['(%s, %d)' % (not_pinging_name(e.nick), e.get_points(point_type))
                           for e in self.get_k(**kwargs, point_type=point_type)])
 
     def get_k_most_points_str(self, **kwargs) -> str:
