@@ -23,3 +23,14 @@ def try_fun(fun, default, *args, **kwargs):
         return fun(*args, **kwargs)
     except:
         return default
+
+
+def time_to_str(seconds: int) -> str:
+    # i know datetime exists, but it does not have access to hours/minutes
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    if h > 0:
+        return "%dh:%02dm:%02ds" % (h, m, s)
+    if m > 0:
+        return "%02dm:%02ds" % (m, s)
+    return "%02ds" % s
