@@ -14,6 +14,11 @@ class Eventbase(persistent.Persistent):
         self.next_id = 0
         logger.info('Created new Eventbase')
 
+    def update_vars(self, **_):
+        # function to set misc vars
+        pass
+        self.save()
+
     def save(self):
         self._p_changed = True
         transaction.commit()
@@ -31,6 +36,10 @@ class Eventbase(persistent.Persistent):
 
     def add_chat_tip_event(self, by, target, points_desired, points_tipped):
         event = ChatTipEvent(by, target, points_desired, points_tipped)
+        self.add_event(event)
+
+    def add_on_kick_event(self, by: str, target: str, channel: str, msg: str, points: int):
+        event = OnKickEvent(by, target, channel, msg, points)
         self.add_event(event)
 
     def print(self):

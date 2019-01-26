@@ -13,3 +13,4 @@ Pipfile.lock
 /data/*
 /tests
 log.txt
+stuff.txt

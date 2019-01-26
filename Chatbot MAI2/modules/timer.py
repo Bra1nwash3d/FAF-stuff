@@ -9,20 +9,34 @@ logger = get_logger('spam_protect')
 class SpamProtect:
     def __init__(self, protected_channels):
         """ prefer stored protected_channels and new timer/default_cd """
-        self.default_cd = 0
         self.channels = persistent.dict.PersistentDict()  # store of when commands were used last
         self.timer = persistent.dict.PersistentDict()  # store of command dependent cooldowns
         self.protected_channels = protected_channels if protected_channels is not None else []
+
+        # vars
+        self.default_cd = 0
+
         logger.info('Created new SpamProtect, watches over: %s' % str(self.protected_channels))
+
+    def update_vars(self, default_cd=None, **_):
+        # function to set misc vars
+        self.default_cd = default_cd if default_cd is not None else self.default_cd
+        self.save()
+
+    def update_timer(self, timer=None):
+        self.timer = timer if timer is not None else self.timer
+        logger.info('Updated SpamProtect timer %s' % str(self.timer))
+        self.save()
+
+    def save(self):
+        self._p_changed = True
+        transaction.commit()
 
     def print(self):
         logger.info('Loaded SpamProtect, watches over: %s' % str(self.protected_channels))
 
-    def update_timer(self, timer=None, default_cd=None):
-        self.timer = timer if timer is not None else self.timer
-        self.default_cd = default_cd if default_cd is not None else 0
-        logger.info('Updated timer/defaultcd %s, %s' % (str(self.timer), str(default_cd)))
-        # logger.info('SpamProtect watches over: %s' % str(self.protected_channels))
+    def is_in_protected_channels(self, channel):
+        return channel in self.channels
 
     def get_remaining(self, channel, cmd, include_unprotected=False):
         if channel not in self.channels.keys():

@@ -68,3 +68,23 @@ class ChatTipEvent(Event):
             'p0': self.p_desired,
             'p1': self.p_tipped,
         })
+
+
+class OnKickEvent(Event):
+    def __init__(self, by, target, channel, msg: str, points: int):
+        super(OnKickEvent, self).__init__(EventType.KICK, by)
+        self.target = target
+        self.channel = channel
+        self.msg = msg
+        self.points = points
+
+    def __str__(self):
+        return 'Event id:{id}, type:{type}, by:{by}, target:{target}, channel:{c}, msg:{msg}, points: {p}'.format(**{
+            'id': self.id,
+            'type': self.type,
+            'by': self.by,
+            'target': self.target,
+            'c': self.channel,
+            'msg': self.msg,
+            'p': self.points
+        })

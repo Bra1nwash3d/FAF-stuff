@@ -4,12 +4,12 @@ A fork of https://github.com/Petricpwnz/NyAI, refactored, modified and (currentl
 
 ## Installation
 
-Install Python 3.6 or higher.
-`pip install pipenv` to install pipenv.
-
 Create the config file and modify the settings as appropriate:
 
     cp config.ini.example config.ini
+
+Install Python 3.6 or higher.
+`pip install pipenv` to install pipenv.
 
 Install the package dependencies:
 
@@ -48,5 +48,9 @@ But here's a pip freeze:
 
 
 ## Usage
+
+    irc3 config.ini
+   
+or maybe
 
     pipenv run irc3 config.ini

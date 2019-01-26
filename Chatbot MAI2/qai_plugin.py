@@ -17,9 +17,8 @@ from modules.utils import *
 
 logger = get_logger.get_logger('main')
 
-ADMINS = []
+ADMINS = []  # only required until commands are available to the public
 MAIN_CHANNEL = '#aeolus'
-VARS = {}
 DEFAULTVALUE = 500
 
 NICKSERV_WAIT_TICKS = 60
@@ -52,6 +51,7 @@ class Plugin(object):
     ]
 
     def __init__(self, bot):
+        # TODO run connection.cacheMinimize() every once in a while
         self.bot = bot
         self.loop = asyncio.new_event_loop()
         storage = ZODB.FileStorage.FileStorage(self.bot.config['storage2'])
@@ -70,10 +70,6 @@ class Plugin(object):
             self.db_root.chatbase.print()
         except:
             self.db_root.chatbase = chatbase.Chatbase(self.db_root.eventbase, self.db_root.spam_protect)
-        # TODO run connection.cacheMinimize() every once in a while
-        level_to_points(500)  # cache levels up to 500
-        global NICKSERVRESPONSESLOCK
-        NICKSERVRESPONSESLOCK = threading.Lock()
 
     @classmethod
     def reload(cls, old):
@@ -105,13 +101,9 @@ class Plugin(object):
 
     @irc3.event(irc3.rfc.KICK)
     async def on_kick(self, *args, **kwargs):
-        kicktarget = kwargs['target']
-        logger.info('{kicktarget} got kicked from {channel} by {nick} with reason "{reason}"!'.format(**{
-            'kicktarget': kicktarget,
-            'channel': kwargs.get('channel', '?'),
-            'nick': kwargs.get('mask').nick,
-            'reason': kwargs.get('data', '?'),
-        }))
+        by, target = kwargs.get('mask').nick, kwargs['target']
+        channel, reason = kwargs.get('channel', '?'), kwargs.get('data', '?')
+        self.db_root.chatbase.on_kick(by, target, channel, reason)
 
     @irc3.event(irc3.rfc.MODE)
     async def on_mode(self, *args, **kwargs):
@@ -164,25 +156,43 @@ class Plugin(object):
         NICKSERVRESPONSESLOCK.release()
 
     def on_restart(self):
-        time.clock()
         t0 = time.clock()
-        global VARS, IGNOREDUSERS, ADMINS, DEFAULTVALUE
-        ADMINS = [n.split('@')[0].replace('!', '').replace('*', '')
-                  for n, v in self.bot.config['irc3.plugins.command.masks'].items() if len(v) > 5]
-        default_cd = self.bot.config.get('spam_protect_time', 600)
-        IGNOREDUSERS = self.__db_get(['ignoredusers'])
-        VARS = self.__db_get(['vars'])
+
+        # TODO get rid of global vars
+        global NICKSERVRESPONSESLOCK, IGNOREDUSERS, ADMINS, DEFAULTVALUE
+        NICKSERVRESPONSESLOCK = threading.Lock()
+
+        # default vars for cooldowns, some costs, requirements  # TODO make command to modify
+        for k, v in {
+            'points_cost_on_kick': -500,                                    # for chatbase
+            'points_cost_on_ban': -1000,                                    # for chatbase
+            'default_cd': self.bot.config.get('spam_protect_time', 600),    # for spamprotect
+        }.items():
+            self.__db_add(['vars'], k, v, overwrite_if_exists=False, save=False)
+        # for t in ['chattip', 'chatlvl', 'chatladder']:
+        #     self.__db_add(['timers'], t, default_cd, overwrite_if_exists=False, save=False)
+
+        # add misc other defaults/paths to db.json
         self.__db_add([], 'ignoredusers', {}, overwrite_if_exists=False, save=False)
-        for t in ['chattip', 'chatlvl', 'chatladder']:
-            self.__db_add(['timers'], t, default_cd, overwrite_if_exists=False, save=False)
-        for t in []:
-            self.__db_add(['vars'], t, DEFAULTVALUE, overwrite_if_exists=False, save=False)
         self.__db_add([], 'chatlvlwords', {}, overwrite_if_exists=False, save=False)
         self.__db_add(['chatlvlmisc'], 'epoch', 1, overwrite_if_exists=False, save=True)
-        self.db_root.spam_protect.update_timer(self.__db_get(['timers']), default_cd=default_cd)
-        t1 = time.clock()
+
+        level_to_points(500)  # cache levels up to 500
+
+        # get misc vars from db.json
+        ADMINS = [n.split('@')[0].replace('!', '').replace('*', '')
+                  for n, v in self.bot.config['irc3.plugins.command.masks'].items() if len(v) > 5]
+        IGNOREDUSERS = self.__db_get(['ignoredusers'])
+
+        # update stuff
+        self.db_root.spam_protect.update_timer(self.__db_get(['timers']))
+        vars_ = self.__db_get(['vars'])
+        self.db_root.chatbase.update_vars(**vars_)
+        self.db_root.eventbase.update_vars(**vars_)
+        self.db_root.spam_protect.update_vars(**vars_)
+
         logger.info('Admins: %s' % str(ADMINS))
-        logger.info("Startup time: {t}".format(**{"t": format(t1 - t0, '.4f')}))
+        logger.info("Startup time: {t}".format(**{"t": format(time.clock() - t0, '.4f')}))
 
     def pm(self, mask, target, message, action_=False, nowait=True):
         """Fixes bot PMing itself instead of the user if privmsg is called by user in PM instead of a channel."""
@@ -273,7 +283,7 @@ class Plugin(object):
 
     @command()
     async def chatevents(self, mask, target, args):
-        """ Find (recent) logged events
+        """ Find (recent) logged events,
             Use . to mark unnecessary filters
 
             %%chatevents <type> <nick> <time>
