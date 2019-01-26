@@ -29,6 +29,7 @@ class Chatbase(persistent.Persistent):
         self.points_cost_on_kick = points_cost_on_kick if points_cost_on_kick is not None else self.points_cost_on_kick
         self.points_cost_on_ban = points_cost_on_ban if points_cost_on_ban is not None else self.points_cost_on_ban
         self.save()
+        logger.info('Chatbase, updating kick:%d, ban:%d' % (points_cost_on_kick, points_cost_on_ban))
 
     def save(self):
         self._p_changed = True

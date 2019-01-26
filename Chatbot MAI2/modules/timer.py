@@ -22,6 +22,7 @@ class SpamProtect:
         # function to set misc vars
         self.default_cd = default_cd if default_cd is not None else self.default_cd
         self.save()
+        logger.info('SpamProtect, updating defaultcd:%d' % default_cd)
 
     def update_timer(self, timer=None):
         self.timer = timer if timer is not None else self.timer
