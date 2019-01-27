@@ -11,6 +11,6 @@ Pipfile.lock
 /.pytest_cache
 /.cache
 /data/*
-/tests
+/quick_tests/data/*
 log.txt
 stuff.txt

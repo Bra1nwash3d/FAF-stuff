@@ -29,8 +29,8 @@ class CallbackQueue(persistent.Persistent):
         with state_lock:
             heapq.heappush(self.items, item)
             self.save()
-            logger.info('Added to queue, %d, %s'
-                        % (len(self.items), ['%3.0f' % (i.time-time.time()) for i in self.items]))
+            logger.debug('Added to queue, %d, %s'
+                         % (len(self.items), ['%3.0f' % (i.time-time.time()) for i in self.items]))
 
     def pop(self):
         with state_lock:
