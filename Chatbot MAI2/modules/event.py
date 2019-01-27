@@ -3,7 +3,7 @@ import time
 from modules.get_logger import get_logger
 from modules.types import EventType, CommandType
 
-logger = get_logger('chatentity')
+logger = get_logger('event')
 
 
 class Event(persistent.Persistent):

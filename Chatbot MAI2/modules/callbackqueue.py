@@ -29,7 +29,7 @@ class CallbackQueue(persistent.Persistent):
         with state_lock:
             heapq.heappush(self.items, item)
             self.save()
-            logger.debug('Added to queue, %d, %s'
+            logger.debug('Callbackqueue, added to queue, %d, %s'
                          % (len(self.items), ['%3.0f' % (i.time-time.time()) for i in self.items]))
 
     def pop(self):
@@ -39,13 +39,14 @@ class CallbackQueue(persistent.Persistent):
             item = heapq.heappop(self.items)
             self.save()
             transaction.commit()
+            logger.debug('Callbackqueue, removed an item from queue, %d remaining' % len(self.items))
             return item
 
     def should_pop(self):
         with state_lock:
             if len(self.items) == 0:
                 return False
-            return self.items[0].time < time.time()
+            return self.items[0].ended()
 
     def save(self):
         with state_lock:
@@ -67,6 +68,7 @@ class CallbackQueueWorkerThread(threading.Thread):
 
     def run(self):
         while self.keep_running:
+            logger.info('.')  # TODO remove
             while self.queue.should_pop():
                 item = self.queue.pop()
                 item.callback()

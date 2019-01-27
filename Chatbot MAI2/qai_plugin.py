@@ -12,6 +12,8 @@ import ZODB.FileStorage
 from decorators import nickserv_identified, channel_only
 from modules import chatbase, get_logger, eventbase
 from modules.timer import SpamProtect
+from modules.effectbase import EffectBase
+from modules.callbackqueue import CallbackQueue, CallbackQueueWorkerThread
 from modules.types import PointType, CommandType, EventType
 from modules.utils import *
 
@@ -58,6 +60,16 @@ class Plugin(object):
         self.db_con = self.db.open()
         self.db_root = self.db_con.root
         try:
+            self.db_root.queue.print()
+        except:
+            self.db_root.queue = CallbackQueue()
+        self.queue_thread = CallbackQueueWorkerThread(self.db_root.queue)
+        self.queue_thread.start()
+        try:
+            self.db_root.effectbase.print()
+        except:
+            self.db_root.effectbase = EffectBase(self.db_root.queue)
+        try:
             self.db_root.spam_protect.print()
         except:
             self.db_root.spam_protect = SpamProtect([MAIN_CHANNEL])
@@ -68,7 +80,8 @@ class Plugin(object):
         try:
             self.db_root.chatbase.print()
         except:
-            self.db_root.chatbase = chatbase.Chatbase(self.db_root.eventbase, self.db_root.spam_protect)
+            self.db_root.chatbase = chatbase.Chatbase(self.db_root.eventbase, self.db_root.spam_protect,
+                                                      self.db_root.queue, self.db_root.effectbase)
 
     @classmethod
     def reload(cls, old):
@@ -172,7 +185,7 @@ class Plugin(object):
         #     self.__db_add(['timers'], t, default_cd, overwrite_if_exists=False, save=False)
 
         # forcefully add some silent bots to the entity list, so events etc register correctly
-        for n in ['AeonCommander', 'CybranCommander', 'UefCommander', 'SeraCommander']:
+        for n in ['AeonCommander', 'CybranCommander', 'UefCommander', 'SeraCommander', self.bot.config['nick']]:
             self.db_root.chatbase.add(n, n)
 
         # add misc other defaults/paths to db.json
@@ -188,6 +201,7 @@ class Plugin(object):
         IGNOREDUSERS = self.__db_get(['ignoredusers'])
 
         # update stuff
+        # TODO update effectbase with json path
         self.db_root.spam_protect.update_timer(self.__db_get(['timers']))
         vars_ = self.__db_get(['vars'])
         self.db_root.chatbase.update_vars(**vars_)
@@ -348,6 +362,19 @@ class Plugin(object):
             return
         _, msg = self.db_root.chatbase.tip(mask.nick, name, amount, partial=True)
         self.db_root.eventbase.add_command_event(CommandType.CHATTIP, by_=player_id(mask), target=target, args=args)
+        self.pm(mask, target, msg)
+
+    @command(show_in_help_list=False)
+    async def test(self, mask, target, args):
+        """ Just testing stuff
+
+            %%test
+        """
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        msg = "TEST"
+        self.db_root.chatbase.apply_effect(player_id(mask))
         self.pm(mask, target, msg)
 
     @command(permission='admin', show_in_help_list=False)

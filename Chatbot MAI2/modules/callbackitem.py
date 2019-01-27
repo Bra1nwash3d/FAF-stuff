@@ -35,6 +35,12 @@ class CallbackItem(persistent.Persistent):
         self._p_changed = True
         transaction.commit()
 
+    def rem_time(self) -> float:
+        return self.time - time.time()
+
+    def ended(self) -> bool:
+        return self.time <= time.time()
+
     def __eq__(self, other):
         return self.time == other.time
 

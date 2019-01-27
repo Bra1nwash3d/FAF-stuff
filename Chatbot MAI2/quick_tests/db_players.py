@@ -1,4 +1,4 @@
-import modules.chatbase as chatbase
+from modules.chatbase import Chatbase
 import modules.eventbase as eventbase
 import modules.timer as timer
 import ZODB
@@ -17,7 +17,7 @@ class X:
         try:
             self.db_root.chatbase.print()
         except:
-            self.db_root.chatbase = chatbase.Chatbase(eventbase.Eventbase(), timer.SpamProtect(['#aeolus']))
+            self.db_root.chatbase = Chatbase(eventbase.Eventbase(), timer.SpamProtect(['#aeolus']), None, None)
             self.db_root.chatbase.print()
 
         # self.db_root.chatbase.on_chat('this is a test', 'Washy', 'Washy', '#shadows')

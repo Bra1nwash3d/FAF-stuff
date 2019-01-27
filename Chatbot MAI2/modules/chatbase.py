@@ -4,25 +4,32 @@ import transaction
 from heapq import nlargest, nsmallest
 from modules.utils import *
 from modules.chatentity import ChatEntity
+from modules.callbackqueue import CallbackQueue
+from modules.eventbase import Eventbase
+from modules.timer import SpamProtect
 from modules.types import PointType
+from modules.effectbase import EffectBase
 from modules.get_logger import get_logger
 
 logger = get_logger('chatbase')
 
 
 class Chatbase(persistent.Persistent):
-    def __init__(self, eventbase, spam_protect):
+    def __init__(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue, effectbase: EffectBase):
         super(Chatbase, self).__init__()
         self.entities = BTrees.OOBTree.BTree()
         self.nick_to_id = BTrees.OOBTree.BTree()
         self.eventbase = eventbase
+        self.effectbase = effectbase
         self.spam_protect = spam_protect
+        self.queue = queue
 
         # misc vars
         self.points_cost_on_kick = 0
         self.points_cost_on_ban = 0
 
         # TODO make points some adjustable variable, stored in VARS i guess
+        self.save()
         logger.info('Created new Chatbase')
 
     def update_vars(self, points_cost_on_kick=None, points_cost_on_ban=None, **_):
@@ -104,7 +111,7 @@ class Chatbase(persistent.Persistent):
         id1, id2, cid = self.get_id(by), self.get_id(target), self.get_id(channel)
         msg_add = ''
         if id1 is None or id2 is None:
-            msg_add = ', but one of them is not in the DB'
+            msg_add = ', but one of them is not in the DB (%s, %s)' % (id1, id2)
         else:
             logger.info('kick!!!! %d' % self.points_cost_on_kick)
             self.__generic_on_something(self.points_cost_on_kick, id2, PointType.KICK, partial=True)
@@ -137,3 +144,11 @@ class Chatbase(persistent.Persistent):
         logger.debug('tipped %d: (%s, %s) -> (%s, %s)' % (p, nick1, id1, nick2, id2))
         self.eventbase.add_chat_tip_event(id1, id2, amount, p)
         return p, '%s tipped %d points to %s!' % (nick1, p, nick2)
+
+    def apply_effect(self, id_):
+        """ Applies an effect to a chatentity """
+        # TODO just testing right now
+        # possibly need to look up the effect in some effectbase and create an object
+        entity = self.get(id_)
+        effect = self.effectbase.test_effect()
+        entity.add_effect(effect)
