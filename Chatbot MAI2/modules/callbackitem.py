@@ -18,7 +18,7 @@ class CallbackItem(persistent.Persistent):
         self.args = args
         self.kwargs = kwargs
         self.done = False
-        transaction.commit()
+        self.save()
         logger.info('created CallbackItem, %ss, %s, %s' % (seconds, args, kwargs))
 
     def callback(self):
@@ -27,8 +27,13 @@ class CallbackItem(persistent.Persistent):
         r = self.fun(*self.args, **self.kwargs)
         self.done = True
         transaction.commit()
+        self.save()
         logger.info('using CallbackItem, %s, %s' % (self.args, self.kwargs))
         return r
+
+    def save(self):
+        self._p_changed = True
+        transaction.commit()
 
     def __eq__(self, other):
         return self.time == other.time
