@@ -2,14 +2,13 @@ import BTrees.OOBTree
 import persistent.list
 import transaction
 from heapq import nlargest, nsmallest
-from modules.utils import *
+from modules.utils import get_logger, not_pinging_name
 from modules.chatentity import ChatEntity
 from modules.callbackqueue import CallbackQueue
 from modules.eventbase import Eventbase
 from modules.timer import SpamProtect
 from modules.types import PointType
 from modules.effectbase import EffectBase
-from modules.get_logger import get_logger
 
 logger = get_logger('chatbase')
 

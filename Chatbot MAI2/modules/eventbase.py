@@ -2,7 +2,7 @@ import persistent.list
 import transaction
 from modules.event import *
 from modules.types import CommandType, EventType
-from modules.get_logger import get_logger
+from modules.utils import get_logger
 
 logger = get_logger('eventbase')
 
@@ -55,7 +55,7 @@ class Eventbase(persistent.Persistent):
                 filtered.append(e)
         return filtered
 
-    def filter_type(self, types, events=None):
+    def filter_type(self, types: [EventType], events=None):
         """ types is a list, can be [None] to include all """
         events = events if events is not None else self.events
         if types.count(None) == len(types):

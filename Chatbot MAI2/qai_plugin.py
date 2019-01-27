@@ -10,14 +10,14 @@ import ZODB
 import ZODB.FileStorage
 
 from decorators import nickserv_identified, channel_only
-from modules import chatbase, get_logger, eventbase
+from modules import chatbase, eventbase
 from modules.timer import SpamProtect
 from modules.effectbase import EffectBase
 from modules.callbackqueue import CallbackQueue, CallbackQueueWorkerThread
 from modules.types import PointType, CommandType, EventType
-from modules.utils import *
+from modules.utils import get_logger, level_to_points, try_fun
 
-logger = get_logger.get_logger('main')
+logger = get_logger('main')
 
 ADMINS = []  # only required until commands are available to the public
 MAIN_CHANNEL = '#aeolus'
@@ -201,7 +201,7 @@ class Plugin(object):
         IGNOREDUSERS = self.__db_get(['ignoredusers'])
 
         # update stuff
-        # TODO update effectbase with json path
+        self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
         self.db_root.spam_protect.update_timer(self.__db_get(['timers']))
         vars_ = self.__db_get(['vars'])
         self.db_root.chatbase.update_vars(**vars_)
@@ -395,6 +395,7 @@ class Plugin(object):
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chattip', mask.nick, target))
         if self.spam_protect_wrap(target, 'chattip', mask, CommandType.CHATTIP, target, args):
             return
         name, amount = args.get('<name>'), args.get('<amount>')
@@ -415,6 +416,7 @@ class Plugin(object):
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'test', mask.nick, target))
         name = args.get('<name>')
         name = mask.nick if name is None else name
         id_ = self.db_root.chatbase.get_id(name)
@@ -447,8 +449,21 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.CD, by_=player_id(mask), target=target, args=args)
 
     @command(permission='admin', public=False)
+    @nickserv_identified
+    async def reload(self, mask, target, args):
+        """ Reload bot components
+
+            %%reload effects
+        """
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'reload', mask.nick, target))
+        if args.get('effects'):
+            self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
+        self.db_root.eventbase.add_command_event(CommandType.RELOAD, by_=player_id(mask), target=target, args=args)
+
+    @command(permission='admin', public=False)
     async def hidden(self, mask, target, args):
         """Actually shows hidden commands
+
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))

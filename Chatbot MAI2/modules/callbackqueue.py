@@ -1,13 +1,13 @@
 import transaction
 import time
 import persistent
-import threading
 import heapq
+import threading
 from modules.callbackitem import CallbackItem
-from modules.get_logger import get_logger
+from modules.utils import get_logger, get_lock
 
 logger = get_logger('callbackqueue')
-state_lock = threading.RLock()  # necessary external lock...
+lock = get_lock('callbackqueue')  # necessary external lock...
 
 
 class CallbackQueue(persistent.Persistent):
@@ -22,18 +22,18 @@ class CallbackQueue(persistent.Persistent):
         logger.info('Created new CallbackQueue')
 
     def print(self):
-        with state_lock:
+        with lock:
             logger.info('Callbackqueue has %i queued items' % len(self.items))
 
     def add(self, item: CallbackItem):
-        with state_lock:
+        with lock:
             heapq.heappush(self.items, item)
             self.save()
             logger.debug('Callbackqueue, added to queue, %d, %s'
                          % (len(self.items), ['%3.0f' % (i.time-time.time()) for i in self.items]))
 
     def pop(self):
-        with state_lock:
+        with lock:
             if len(self.items) == 0:
                 return None
             item = heapq.heappop(self.items)
@@ -43,13 +43,13 @@ class CallbackQueue(persistent.Persistent):
             return item
 
     def should_pop(self):
-        with state_lock:
+        with lock:
             if len(self.items) == 0:
                 return False
             return self.items[0].ended()
 
     def save(self):
-        with state_lock:
+        with lock:
             transaction.begin()
             self._p_changed = True
             transaction.commit()

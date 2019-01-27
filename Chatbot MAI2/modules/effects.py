@@ -5,8 +5,7 @@ import time
 from modules.types import PointType
 from modules.callbackitem import CallbackItem
 from modules.callbackqueue import CallbackQueue
-from modules.utils import *
-from modules.get_logger import get_logger
+from modules.utils import get_logger, time_to_str
 
 logger = get_logger('effects')
 

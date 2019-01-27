@@ -2,7 +2,7 @@ import transaction
 import time
 import persistent
 import functools
-from modules.get_logger import get_logger
+from modules.utils import get_logger
 
 logger = get_logger('callbackitem')
 

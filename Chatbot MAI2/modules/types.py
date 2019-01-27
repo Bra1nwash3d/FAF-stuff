@@ -31,6 +31,7 @@ class CommandType(enum.Enum):
     JOIN = 'join'
     LEAVE = 'leave'
     HIDDEN = 'hidden'
+    RELOAD = 'reload'
     CD = 'cd'
     CHATLVL = 'chatlvl'
     CHATMULTS = 'chatmults'

@@ -1,7 +1,7 @@
 import time
 import persistent.dict
 import transaction
-from modules.get_logger import get_logger
+from modules.utils import get_logger
 
 logger = get_logger('spam_protect')
 
@@ -59,4 +59,3 @@ class SpamProtect:
         if update and rem_time <= 0:
             self.set_now(channel, cmd)
         return rem_time > 0, rem_time
-

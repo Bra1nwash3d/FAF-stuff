@@ -2,7 +2,7 @@ import persistent
 import persistent.dict
 import persistent.list
 import transaction
-from modules.get_logger import get_logger
+from modules.utils import get_logger
 from modules.types import PointType
 from modules.effects import PointsEffect
 

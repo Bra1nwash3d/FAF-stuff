@@ -1,4 +1,32 @@
+import logging
+import threading
+
+
 LEVEL_TO_POINTS = [0, 50]  # to be filled
+loggers = {}
+locks = {}
+
+
+def get_logger(name='bot', level='info'):
+    if name in loggers:
+        return loggers.get(name)
+    level = {
+        'info': logging.INFO,
+        'debug': logging.DEBUG,
+    }.get(level.lower())
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    ch = logging.StreamHandler()
+    ch.setLevel(level)
+    logger.addHandler(ch)
+    return logger
+
+
+def get_lock(name='lock'):
+    if name in locks:
+        return locks.get(name)
+    locks[name] = threading.RLock()
+    return locks.get(name)
 
 
 def level_to_points(level: int) -> int:

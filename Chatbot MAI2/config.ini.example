@@ -13,8 +13,10 @@ includes =
     irc3.plugins.storage
 
 storage = json://./data/db.json
-storage2 = ./data/data.fs
 autosave = 600
+
+storage2 = ./data/data.fs
+effects_file = ./data/effects.json
 
 autojoins =
     aeolus

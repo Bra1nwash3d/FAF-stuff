@@ -1,6 +1,6 @@
 import persistent
 import time
-from modules.get_logger import get_logger
+from modules.utils import get_logger
 from modules.types import EventType, CommandType
 
 logger = get_logger('event')
