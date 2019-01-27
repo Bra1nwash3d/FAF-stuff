@@ -12,7 +12,7 @@ logger = get_logger('effects')
 
 class PointsEffect(persistent.Persistent):
 
-    def __init__(self, id_, name, duration: int, queue: CallbackQueue, default=None):
+    def __init__(self, id_, name, duration: int, queue: CallbackQueue, default_mult=None):
         super(PointsEffect, self).__init__()
         self.id = id_
         self.name = name
@@ -20,8 +20,8 @@ class PointsEffect(persistent.Persistent):
         self.queue = queue
         self.time = None
         self.mults = persistent.dict.PersistentDict()
-        if default is not None:
-            self.mults.update(default)
+        if default_mult is not None:
+            self.mults.update(default_mult)
         self.save()
 
     def add_mult(self, type_: PointType, mult: float):

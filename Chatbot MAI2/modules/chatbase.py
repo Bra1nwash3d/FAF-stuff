@@ -144,10 +144,15 @@ class Chatbase(persistent.Persistent):
         self.eventbase.add_chat_tip_event(id1, id2, amount, p)
         return p, '%s tipped %d points to %s!' % (nick1, p, nick2)
 
-    def apply_effect(self, id_):
+    def apply_test_effect(self, id_):
+        """ Applies a test effect to a chatentity """
+        self.get(id_).add_effect(self.effectbase.test_effect())
+
+    def apply_effect(self, entity_id: str, effect_id: str, is_player_nick=False, is_effect_name=False) -> str:
         """ Applies an effect to a chatentity """
-        # TODO just testing right now
-        # possibly need to look up the effect in some effectbase and create an object
-        entity = self.get(id_)
-        effect = self.effectbase.test_effect()
+        effect = self.effectbase.get_effect(effect_id, is_name=is_effect_name)
+        entity = self.get(entity_id, is_nick=is_player_nick)
+        if effect is None:
+            return 'Failed applying the effect to %s! It was probably not found...' % entity.nick
         entity.add_effect(effect)
+        return '%s received effect: %s' % (entity.nick, effect.to_str())

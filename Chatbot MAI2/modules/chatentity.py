@@ -26,6 +26,9 @@ class ChatEntity(persistent.Persistent):
         transaction.commit()
 
     def add_effect(self, effect: PointsEffect):
+        if effect is None:
+            logger.warn('Chatentity id:%s, nick:%s, tried applying None effect' % (self.id, self.nick))
+            return
         self.effects.append(effect)
         effect.begin(self)
         logger.debug('ChatEntity id:%s adding new effect, has %d' % (self.id, len(self.effects)))

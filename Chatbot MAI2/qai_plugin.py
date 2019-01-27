@@ -421,7 +421,7 @@ class Plugin(object):
         name = args.get('<name>')
         name = mask.nick if name is None else name
         id_ = self.db_root.chatbase.get_id(name)
-        self.db_root.chatbase.apply_effect(id_)
+        self.db_root.chatbase.apply_test_effect(id_)
         self.pm(mask, target, 'Adding test effect to %s:%s' % (name, id_))
 
     @command(permission='admin', show_in_help_list=False)
@@ -462,13 +462,27 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.RELOAD, by_=player_id(mask), target=target, args=args)
 
     @command(permission='admin', public=False)
+    @nickserv_identified
+    async def admineffects(self, mask, target, args):
+        """ Abuse admin powers to fiddle with effects
+
+            %%admineffects add <name> <effectid>
+        """
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
+        name, effect_id = args.get('<name>'), args.get('<effectid>')
+        msg = self.db_root.chatbase.apply_effect(name, effect_id, is_player_nick=True, is_effect_name=False)
+        self.pm(mask, mask.nick, msg)
+        self.db_root.eventbase.add_command_event(CommandType.ADMINEFFECTS, by_=player_id(mask),
+                                                 target=target, args=args)
+
+    @command(permission='admin', public=False)
     async def hidden(self, mask, target, args):
         """Actually shows hidden commands
 
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd", "reload"]
+        words = ["join", "leave", "cd", "reload", "admineffects"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)
