@@ -71,3 +71,8 @@ class EventType(enum.Enum):
         return {
             'tip': EventType.CHATTIP,
         }.get(str_.lower(), None)
+
+
+class ChatType(enum.Enum):
+    IRC = 'irc'
+    IDK = 'idk'

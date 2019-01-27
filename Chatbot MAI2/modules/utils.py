@@ -1,10 +1,12 @@
 import logging
 import threading
+from modules.types import ChatType
 
 
 LEVEL_TO_POINTS = [0, 50]  # to be filled
 loggers = {}
 locks = {}
+message_funs = {}
 
 
 def get_logger(name='bot', level='info'):
@@ -66,3 +68,24 @@ def time_to_str(seconds: int) -> str:
 
 def not_pinging_name(name):
     return '%s%s%s' % (name[0:len(name)-1], '.', name[len(name)-1])
+
+
+failure_logger = get_logger('utils')
+
+
+def __log_msg_fun(type_: ChatType):
+    def wrapped(target, msg):
+        failure_logger.warning('[missing logger for %s] %s: %s' % (type_.value, target, msg))
+
+    return wrapped
+
+
+def set_msg_fun(type_: ChatType, fun):
+    message_funs[type_] = fun
+
+
+def get_msg_fun(type_: ChatType):
+    fun = message_funs.get(type_, None)
+    if fun is None:
+        return __log_msg_fun(type_)
+    return fun

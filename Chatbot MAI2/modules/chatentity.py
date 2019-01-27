@@ -4,7 +4,8 @@ import persistent.list
 import transaction
 from modules.effectbase import EffectBase
 from modules.utils import get_logger
-from modules.types import PointType
+from modules.utils import get_msg_fun as gmf
+from modules.types import PointType, ChatType
 from modules.effects import PointsEffect
 
 logger = get_logger('chatentity')
@@ -47,7 +48,9 @@ class ChatEntity(persistent.Persistent):
             for k, v in e.get_mults().items():
                 self.mults[k] = self.mults.get(k, 1) * v
         self.save()
-        logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
+        gmf(ChatType.IRC)(self.nick, 'Updated your chat-effects! Your multipliers are now [%s]' %
+                          ', '.join(self.__get_mults_strs()))
+        logger.info('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
         logger.debug('ChatEntity id:%s has mults: %s' % (self.id, self.mults))
 
     def update_points(self, delta, nick=None, type_=PointType.CHAT, partial=False, mult_enabled=True) -> (int, bool):
@@ -88,13 +91,22 @@ class ChatEntity(persistent.Persistent):
                 msg_parts.append('%i from %s' % (p, PointType.as_str(type_)))
         return "%s has %i points (%s)" % (self.nick, self.point_sum, ", ".join(msg_parts))
 
-    def get_mult_message(self) -> str:
-        msg_parts, sum_ = [], 0
+    def __get_mults_strs(self) -> list:
+        msg_parts = []
         for k, v in self.mults.items():
             if v != 1:
                 msg_parts.append('%s: %.2f' % (PointType.as_str(k), v))
-        return "%s has %i effects running, changing point multipliers to: [%s]"\
-               % (self.nick, len(self.effects), ", ".join(msg_parts))
+        return msg_parts
+
+    def get_mult_message(self) -> str:
+        msg_parts, msg = self.__get_mults_strs(), ''
+        if len(msg_parts) > 0:
+            msg = ', changing point multipliers to: [%s]' % ', '.join(msg_parts)
+        return "{nick} has {n} effects running{mults}".format(**{
+            'nick': self.nick,
+            'n': len(self.effects),
+            'mults': msg,
+        })
 
     def get_effects_message(self) -> str:
         msg = ["%s has %i effects running (not all may stack)" % (self.nick, len(self.effects))]

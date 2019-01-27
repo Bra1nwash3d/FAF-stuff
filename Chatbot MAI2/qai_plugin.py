@@ -14,8 +14,8 @@ from modules import chatbase, eventbase
 from modules.timer import SpamProtect
 from modules.effectbase import EffectBase
 from modules.callbackqueue import CallbackQueue, CallbackQueueWorkerThread
-from modules.types import PointType, CommandType, EventType
-from modules.utils import get_logger, level_to_points, try_fun
+from modules.types import *
+from modules.utils import get_logger, level_to_points, try_fun, set_msg_fun
 
 logger = get_logger('main')
 
@@ -59,6 +59,7 @@ class Plugin(object):
         self.db = ZODB.DB(storage)
         self.db_con = self.db.open()
         self.db_root = self.db_con.root
+        set_msg_fun(ChatType.IRC, self.irc_message)
         try:
             self.db_root.queue.print()
         except:
@@ -212,7 +213,7 @@ class Plugin(object):
         logger.info("Startup time: {t}".format(**{"t": format(time.clock() - t0, '.4f')}))
 
     def pm(self, mask, target, message, action_=False, nowait=True):
-        """Fixes bot PMing itself instead of the user if privmsg is called by user in PM instead of a channel."""
+        """ Fixes bot PMing itself instead of the user if privmsg is called by user in PM instead of a channel. """
         if target == self.bot.config['nick']:
             if isinstance(mask, IrcString):
                 target = mask.nick
@@ -220,6 +221,19 @@ class Plugin(object):
                 target = mask
         fun = self.bot.action if action_ else self.bot.privmsg
         return fun(target, message, nowait=nowait)
+
+    def irc_message(self, target, message):
+        """ Used via utils by some other modules """
+        try:
+            self.bot.privmsg(target, message, nowait=True)
+            return
+        except AttributeError as e1:
+            try:
+                self.bot.privmsg(target, message, nowait=False)
+                return
+            except Exception as e2:
+                logger.warning('Failed sending IRC message! [%s] [%s]' % (str(e1), str(e2)))
+
 
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified
