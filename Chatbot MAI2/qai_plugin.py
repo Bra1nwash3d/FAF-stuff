@@ -297,6 +297,28 @@ class Plugin(object):
                                                  spam_protect_time=rem_time)
 
     @command()
+    async def chateffects(self, mask, target, args):
+        """ Display chatmults
+
+            %%chateffects [<name>]
+        """
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatlvl', mask.nick, target))
+        location = target
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        name = args.get('<name>')
+        name = mask.nick if name is None else name
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(location, 'chateffects')
+        if location == MAIN_CHANNEL and is_spam:
+            location = mask.nick
+        msg = self.db_root.chatbase.get(name, is_nick=True).get_effects_message()
+        for i, m in enumerate(msg.split('\n')):
+            self.pm(mask, location, m)
+        self.db_root.eventbase.add_command_event(CommandType.CHATMULTS, by_=player_id(mask), target=target, args=args,
+                                                 spam_protect_time=rem_time)
+
+    @command()
     async def chatladder(self, mask, target, args):
         """ The names of the top ladder warriors
 
@@ -388,12 +410,16 @@ class Plugin(object):
     async def test(self, mask, target, args):
         """ Just testing stuff
 
-            %%test
+            %%test [<name>]
         """
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
-        self.db_root.chatbase.apply_effect(player_id(mask))
+        name = args.get('<name>')
+        name = mask.nick if name is None else name
+        id_ = self.db_root.chatbase.get_id(name)
+        self.db_root.chatbase.apply_effect(id_)
+        self.pm(mask, target, 'Adding test effect to %s:%s' % (name, id_))
 
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified

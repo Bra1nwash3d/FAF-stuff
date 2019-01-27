@@ -83,7 +83,6 @@ class ChatEntity(persistent.Persistent):
 
     def get_point_message(self) -> str:
         msg_parts, sum_ = [], 0
-
         for type_ in PointType:
             p = self.get_points(type_)
             if p != 0:
@@ -92,12 +91,17 @@ class ChatEntity(persistent.Persistent):
 
     def get_mult_message(self) -> str:
         msg_parts, sum_ = [], 0
-
         for k, v in self.mults.items():
             if v != 1:
                 msg_parts.append('%s: %.2f' % (PointType.as_str(k), v))
-        return "%s has %i effects running, changing point multipliers to (%s)"\
+        return "%s has %i effects running, changing point multipliers to: [%s]"\
                % (self.nick, len(self.effects), ", ".join(msg_parts))
+
+    def get_effects_message(self) -> str:
+        msg = ["%s has %i effects running (not all may stack)" % (self.nick, len(self.effects))]
+        for e in self.effects:
+            msg.append(' - %s' % e.to_str())
+        return '\n'.join(msg)
 
     def get_mult(self, type_=PointType.CHAT) -> int:
         return self.mults.get(type_, 1)

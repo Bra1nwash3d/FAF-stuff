@@ -38,6 +38,6 @@ class EffectBase(persistent.Persistent):
         }))
 
     def test_effect(self):
-        return PointsEffect(self.__next_id(), queue=self.queue, duration=30, default={
+        return PointsEffect(self.__next_id(), name='testeffect', queue=self.queue, duration=30, default={
             PointType.CHAT: 2.0,
         })
