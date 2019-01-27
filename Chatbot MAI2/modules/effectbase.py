@@ -1,6 +1,7 @@
 import persistent.dict
 import transaction
 import json
+import heapq
 from modules.effects import PointsEffect
 from modules.types import *
 from modules.callbackqueue import CallbackQueue
@@ -67,13 +68,36 @@ class EffectBase(persistent.Persistent):
             cfg = self.effects.get(id_)
             if cfg is None:
                 return None
+            pt_add = {PointType.from_str(k): v for k, v in cfg.get('increases').items()}
             pt_mult = {PointType.from_str(k): v for k, v in cfg.get('multipliers').items()}
             logger.debug('EffectBase geteffect for %s, pt_mult: %s' % (id_, str(pt_mult)))
             return PointsEffect(self.__next_id(), name=cfg.get('name'), queue=self.queue, duration=cfg.get('duration'),
-                                default_mult=pt_mult)
+                                adds=pt_add, mults=pt_mult)
 
     def test_effect(self):
         with lock:
-            return PointsEffect(self.__next_id(), name='testeffect', queue=self.queue, duration=30, default_mult={
+            return PointsEffect(self.__next_id(), name='testeffect', queue=self.queue, duration=30, mults={
                 PointType.CHAT: 2.0,
             })
+
+    @staticmethod
+    def get_updated_effects(effects: dict) -> (dict, list):
+        # clear effects that have run out
+        j = 0
+        while j < len(effects):
+            e = effects[j]
+            if e.is_expired():
+                effects.pop(j)
+            else:
+                j += 1
+        # group remaining effects into groups, effects within groups can not stack
+        groups = {}
+        for e in effects:
+            if groups.get(e.group, None) is None:
+                groups[e.group] = []
+            groups[e.group].append(e)
+        # select strongest effect of each group TODO
+        to_apply = []
+        for g in groups.values():
+            to_apply.append(max(g))
+        return effects, to_apply

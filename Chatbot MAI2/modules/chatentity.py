@@ -2,6 +2,7 @@ import persistent
 import persistent.dict
 import persistent.list
 import transaction
+from modules.effectbase import EffectBase
 from modules.utils import get_logger
 from modules.types import PointType
 from modules.effects import PointsEffect
@@ -17,6 +18,7 @@ class ChatEntity(persistent.Persistent):
         self.nick = '_unknown_'
         self.points = persistent.dict.PersistentDict()
         self.point_sum = 0
+        self.items = persistent.dict.PersistentDict()
         self.mults = persistent.dict.PersistentDict()
         self.effects = persistent.list.PersistentList()
         # TODO effects, add, on_change, queue, ...
@@ -30,24 +32,18 @@ class ChatEntity(persistent.Persistent):
             logger.warn('Chatentity id:%s, nick:%s, tried applying None effect' % (self.id, self.nick))
             return
         self.effects.append(effect)
-        effect.begin(self)
+        effect.begin(self.update_effects)
         logger.debug('ChatEntity id:%s adding new effect, has %d' % (self.id, len(self.effects)))
         self.update_effects()
 
     def update_effects(self):
-        # reset multipliers
+        """ updates effects list and multipliers """
         self.mults.clear()
-        # clear effects that have run out
-        j = 0
-        while j < len(self.effects):
-            e = self.effects[j]
-            if e.is_expired():
-                self.effects.pop(j)
-            else:
-                j += 1
-        # group remaining effects into groups, effects within groups can not stack TODO
-        # select strongest effect of each group and modify mults, using all right now TODO
-        for e in self.effects:
+        self.effects, to_apply = EffectBase.get_updated_effects(self.effects)
+        for e in to_apply:
+            for k, v in e.get_adds().items():
+                self.mults[k] = self.mults.get(k, 1) + v
+        for e in to_apply:
             for k, v in e.get_mults().items():
                 self.mults[k] = self.mults.get(k, 1) * v
         self.save()
