@@ -387,6 +387,7 @@ class Plugin(object):
         }))
 
     @command()
+    @nickserv_identified
     async def chattip(self, mask, target, args):
         """ Tip points to others <3
 
@@ -467,7 +468,7 @@ class Plugin(object):
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd"]
+        words = ["join", "leave", "cd", "reload"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)
