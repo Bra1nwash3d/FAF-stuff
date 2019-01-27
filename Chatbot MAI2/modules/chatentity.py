@@ -50,7 +50,7 @@ class ChatEntity(persistent.Persistent):
         self.save()
         gmf(ChatType.IRC)(self.nick, 'Updated your chat-effects! Your multipliers are now [%s]' %
                           ', '.join(self.__get_mults_strs()))
-        logger.info('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
+        logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
         logger.debug('ChatEntity id:%s has mults: %s' % (self.id, self.mults))
 
     def update_points(self, delta, nick=None, type_=PointType.CHAT, partial=False, mult_enabled=True) -> (int, bool):
