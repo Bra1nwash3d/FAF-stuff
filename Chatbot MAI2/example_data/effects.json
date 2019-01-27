@@ -1,0 +1,30 @@
+{
+  "test1": {
+    "name": "testeffect1",
+    "increases": {},
+    "multipliers": {
+      "chat": 3.0
+    },
+    "group": "test",
+    "duration": 20
+  },
+  "test2": {
+    "name": "testeffect2",
+    "increases": {},
+    "multipliers": {
+      "chat": 1.5,
+      "chattip": 1.5
+    },
+    "group": "test",
+    "duration": 60
+  },
+  "chattip": {
+    "name": "chattiptesteffect",
+    "increases": {},
+    "multipliers": {
+      "chattip": 2.0
+    },
+    "group": "test",
+    "duration": 120
+  }
+}
