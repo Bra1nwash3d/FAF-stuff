@@ -19,7 +19,7 @@ class CallbackItem(persistent.Persistent):
         self.kwargs = kwargs
         self.done = False
         self.save()
-        logger.info('created CallbackItem, %ss, %s, %s' % (seconds, args, kwargs))
+        logger.debug('created CallbackItem, %ss, %s, %s' % (seconds, args, kwargs))
 
     def callback(self):
         if self.done:
@@ -28,7 +28,7 @@ class CallbackItem(persistent.Persistent):
         self.done = True
         transaction.commit()
         self.save()
-        logger.info('using CallbackItem, %s, %s' % (self.args, self.kwargs))
+        logger.debug('using CallbackItem, %s, %s' % (self.args, self.kwargs))
         return r
 
     def save(self):

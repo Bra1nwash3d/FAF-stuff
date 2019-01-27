@@ -33,6 +33,7 @@ class CommandType(enum.Enum):
     HIDDEN = 'hidden'
     CD = 'cd'
     CHATLVL = 'chatlvl'
+    CHATMULTS = 'chatmults'
     CHATLADDER = 'chatladder'
     CHATEVENTS = 'chatevents'
     CHATTIP = 'chattip'

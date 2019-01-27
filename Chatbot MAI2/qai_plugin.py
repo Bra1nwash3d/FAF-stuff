@@ -277,6 +277,26 @@ class Plugin(object):
                                                  spam_protect_time=rem_time)
 
     @command()
+    async def chatmults(self, mask, target, args):
+        """ Display chatmults
+
+            %%chatmults [<name>]
+        """
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatlvl', mask.nick, target))
+        location = target
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        name = args.get('<name>')
+        name = mask.nick if name is None else name
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(location, 'chatmults')
+        if location == MAIN_CHANNEL and is_spam:
+            location = mask.nick
+        self.pm(mask, location, self.db_root.chatbase.get(name, is_nick=True).get_mult_message())
+        self.db_root.eventbase.add_command_event(CommandType.CHATMULTS, by_=player_id(mask), target=target, args=args,
+                                                 spam_protect_time=rem_time)
+
+    @command()
     async def chatladder(self, mask, target, args):
         """ The names of the top ladder warriors
 
@@ -373,9 +393,7 @@ class Plugin(object):
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
-        msg = "TEST"
         self.db_root.chatbase.apply_effect(player_id(mask))
-        self.pm(mask, target, msg)
 
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified

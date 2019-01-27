@@ -68,7 +68,6 @@ class CallbackQueueWorkerThread(threading.Thread):
 
     def run(self):
         while self.keep_running:
-            logger.info('.')  # TODO remove
             while self.queue.should_pop():
                 item = self.queue.pop()
                 item.callback()
