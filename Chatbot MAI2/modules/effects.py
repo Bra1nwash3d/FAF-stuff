@@ -55,17 +55,21 @@ class PointsEffect(persistent.Persistent):
         self._p_changed = True
         transaction.commit()
 
+    def rem_time(self) -> float:
+        return self.time - time.time()
+
     def is_expired(self) -> bool:
         # really annoying to not be able to use the callbackitem for this
         # but somehow the reference to it is set to None once given to the queue
-        return self.time <= time.time()
+        return self.rem_time() > 0
 
     def to_str(self):
         """ used for listing effects in chat """
-        return '{name}: affects [{effects}], expires in {t}'.format(**{
+        rem_time = self.rem_time()
+        return '{name}: affects [{effects}], {t}'.format(**{
             'name': self.name,
             'effects': ', '.join(['%s by x%.1f' % (PointType.as_str(k), v) for k, v in self.mults.items()]),
-            't': time_to_str(self.time - time.time())
+            't': 'expires in %s' % time_to_str(self.time - time.time()) if rem_time > 0 else 'expired',
         })
 
     def __str__(self):

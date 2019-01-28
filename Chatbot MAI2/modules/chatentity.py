@@ -3,7 +3,7 @@ import persistent.dict
 import persistent.list
 import transaction
 from modules.effectbase import EffectBase
-from modules.utils import get_logger
+from modules.utils import get_logger, points_to_level
 from modules.utils import get_msg_fun as gmf
 from modules.types import PointType, ChatType
 from modules.effects import PointsEffect
@@ -33,11 +33,11 @@ class ChatEntity(persistent.Persistent):
             logger.warn('Chatentity id:%s, nick:%s, tried applying None effect' % (self.id, self.nick))
             return
         self.effects.append(effect)
-        effect.begin(self.update_effects)
+        effect.begin(self.update_effects, effect, begins=False)
         logger.debug('ChatEntity id:%s adding new effect, has %d' % (self.id, len(self.effects)))
-        self.update_effects()
+        self.update_effects(effect, begins=True)
 
-    def update_effects(self):
+    def update_effects(self, effect: PointsEffect, begins=True):
         """ updates effects list and multipliers """
         self.mults.clear()
         self.effects, to_apply = EffectBase.get_updated_effects(self.effects)
@@ -48,8 +48,12 @@ class ChatEntity(persistent.Persistent):
             for k, v in e.get_mults().items():
                 self.mults[k] = self.mults.get(k, 1) * v
         self.save()
-        gmf(ChatType.IRC)(self.nick, 'Updated your chat-effects! Your multipliers are now [%s]' %
-                          ', '.join(self.__get_mults_strs()))
+        msg = 'A chat-effects {state}! [{effect}], changing your multipliers to [{mults}]!'.format(**{
+            'state': 'begins' if begins else 'ended',
+            'effect': effect.to_str(),
+            'mults': ', '.join(self.__get_mults_strs()),
+        })
+        gmf(ChatType.IRC)(self.nick, msg)
         logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
         logger.debug('ChatEntity id:%s has mults: %s' % (self.id, self.mults))
 
@@ -78,6 +82,10 @@ class ChatEntity(persistent.Persistent):
         }))
         return points, True
 
+    def get_level(self):
+        level, _ = points_to_level(self.point_sum)
+        return level
+
     def get_points(self, type_=None) -> int:
         if type_ is None:
             return self.point_sum
@@ -89,7 +97,14 @@ class ChatEntity(persistent.Persistent):
             p = self.get_points(type_)
             if p != 0:
                 msg_parts.append('%i from %s' % (p, PointType.as_str(type_)))
-        return "%s has %i points (%s)" % (self.nick, self.point_sum, ", ".join(msg_parts))
+        level, rem_points = points_to_level(self.point_sum)
+        return "{nick} is level {lvl} with {p} points ({rp} to next level, {parts})".format(**{
+            'nick': self.nick,
+            'lvl': level,
+            'p': self.point_sum,
+            'rp': rem_points,
+            'parts': ", ".join(msg_parts)
+        })
 
     def __get_mults_strs(self) -> list:
         msg_parts = []

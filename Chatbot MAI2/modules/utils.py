@@ -40,12 +40,14 @@ def level_to_points(level: int) -> int:
     return level_to_points(level)
 
 
-def points_to_level(points: int) -> int:
-    """ may return a too small level if it's not cached """
+def points_to_level(points: int) -> (int, int):
+    """ returns level, and points needed to reach the next one
+        may return a too small level if it's not cached """
     for i, p in enumerate(LEVEL_TO_POINTS):
         if points < p:
-            return i
-    return len(LEVEL_TO_POINTS)
+            if len(LEVEL_TO_POINTS) > i+1:
+                return i, LEVEL_TO_POINTS[i]-points
+    return len(LEVEL_TO_POINTS), -1
 
 
 def try_fun(fun, default, *args, **kwargs):

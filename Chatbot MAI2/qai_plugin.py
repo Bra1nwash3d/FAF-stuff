@@ -238,7 +238,7 @@ class Plugin(object):
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified
     async def join(self, mask, target, args):
-        """Overtake the given channel
+        """ Join the given channel
 
             %%join <channel>
         """
@@ -249,7 +249,7 @@ class Plugin(object):
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified
     async def leave(self, mask, target, args):
-        """Leave the given channel
+        """ Leave the given channel
 
             %%leave
             %%leave <channel>
@@ -348,7 +348,7 @@ class Plugin(object):
             return
         rev, all_ = args.get('rev'), args.get('all')
         point_type = PointType.from_str(args.get('<sum/type>'))
-        # TODO update top chat guys i guess
+        # TODO update top chat guys i guess -> prolly best to have that in chatbase
         # global CHATLVLS, CHATLVL_TOPPLAYERS
         msg = self.db_root.chatbase.get_k_points_str(largest=not rev, incl_channels=all_, point_type=point_type)
         self.pm(mask, target, 'The ranking! %s' % msg)
@@ -362,8 +362,6 @@ class Plugin(object):
             %%chatevents <type> <nick> <time>
             %%chatevents command <type> <nick> <time>
         """
-        # TODO add events (moderation: kick, ban / slaps)
-        # TODO write sum+avg wait time
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
@@ -428,7 +426,6 @@ class Plugin(object):
 
             %%test [<name>]
         """
-        # TODO remove when public
         if mask.nick not in ADMINS:
             return
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'test', mask.nick, target))
@@ -491,7 +488,7 @@ class Plugin(object):
 
     @command(permission='admin', public=False)
     async def hidden(self, mask, target, args):
-        """Actually shows hidden commands
+        """ Actually shows hidden commands
 
             %%hidden
         """

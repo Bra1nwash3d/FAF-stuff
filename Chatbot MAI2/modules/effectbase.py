@@ -1,7 +1,6 @@
 import persistent.dict
 import transaction
 import json
-import heapq
 from modules.effects import PointsEffect
 from modules.types import *
 from modules.callbackqueue import CallbackQueue
@@ -96,7 +95,7 @@ class EffectBase(persistent.Persistent):
             if groups.get(e.group, None) is None:
                 groups[e.group] = []
             groups[e.group].append(e)
-        # select strongest effect of each group TODO
+        # select strongest effect of each group
         to_apply = []
         for g in groups.values():
             to_apply.append(max(g))

@@ -28,7 +28,6 @@ class Chatbase(persistent.Persistent):
         self.points_cost_on_kick = 0
         self.points_cost_on_ban = 0
 
-        # TODO make points some adjustable variable, stored in VARS i guess
         self.save()
         logger.info('Created new Chatbase')
 
@@ -36,7 +35,7 @@ class Chatbase(persistent.Persistent):
         with lock:
             # function to set misc vars
             self.points_cost_on_kick =\
-                points_cost_on_kick if points_cost_on_kick is not None  else self.points_cost_on_kick
+                points_cost_on_kick if points_cost_on_kick is not None else self.points_cost_on_kick
             self.points_cost_on_ban = points_cost_on_ban if points_cost_on_ban is not None else self.points_cost_on_ban
             self.save()
             logger.info('Chatbase, updating kick:%d, ban:%d' % (points_cost_on_kick, points_cost_on_ban))
@@ -80,9 +79,13 @@ class Chatbase(persistent.Persistent):
 
             return fun(k, self.entities.values(), key=lambda e: e.get_points(point_type) if _cond(e) else default)
 
-    def get_k_points_str(self, point_type=None, **kwargs) -> str:
+    def get_k_points_str(self, point_type: PointType=None, **kwargs) -> str:
         with lock:
-            return ', '.join(['(%s, %d)' % (not_pinging_name(e.nick), e.get_points(point_type))
+            if point_type is None:
+                # special text for point sum, as we can use levels
+                return ', '.join(['%s (level %d)' % (not_pinging_name(e.nick), e.get_level())
+                                  for e in self.get_k(**kwargs, point_type=point_type)])
+            return ', '.join(['%s (%d points)' % (not_pinging_name(e.nick), e.get_points(point_type))
                               for e in self.get_k(**kwargs, point_type=point_type)])
 
     def get_k_most_points_str(self, **kwargs) -> str:
@@ -174,4 +177,4 @@ class Chatbase(persistent.Persistent):
             if effect is None:
                 return 'Failed applying the effect to %s! It was probably not found...' % entity.nick
             entity.add_effect(effect)
-            return '%s received effect: %s' % (entity.nick, effect.to_str())
+            return '%s received effect: [%s]' % (entity.nick, effect.to_str())
