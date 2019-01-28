@@ -61,7 +61,9 @@ class PointsEffect(persistent.Persistent):
     def is_expired(self) -> bool:
         # really annoying to not be able to use the callbackitem for this
         # but somehow the reference to it is set to None once given to the queue
-        return self.rem_time() > 0
+        if self.time is None:
+            return False
+        return self.rem_time() < 0
 
     def to_str(self):
         """ used for listing effects in chat """

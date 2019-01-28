@@ -80,7 +80,7 @@ class EffectBase(persistent.Persistent):
             })
 
     @staticmethod
-    def get_updated_effects(effects: dict) -> (dict, list):
+    def get_updated_effects(effects: list) -> (list, list):
         # clear effects that have run out
         j = 0
         while j < len(effects):
