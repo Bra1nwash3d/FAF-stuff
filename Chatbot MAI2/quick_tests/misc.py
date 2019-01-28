@@ -6,4 +6,8 @@ for x in PointType:
     print(x)
 
 print([None, 1].count(None))
-print(sum([1, 2, 3, None]))
+
+a = {'a': False, 'b': True}
+a.pop('b')
+print('a' in a)
+print('b' in a)

@@ -480,7 +480,7 @@ class Plugin(object):
 
             %%admineffects add <name> <effectid>
         """
-        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
         name, effect_id = args.get('<name>'), args.get('<effectid>')
         msg = self.db_root.chatbase.apply_effect(name, effect_id, is_player_nick=True, is_effect_name=False)
         self.pm(mask, mask.nick, msg)
@@ -496,6 +496,7 @@ class Plugin(object):
             %%adminignore add <name> [<time>]
             %%adminignore del <name>
         """
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminignore', mask.nick, target))
         get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
         time_ = args.get('<time>')
         if get:
@@ -505,6 +506,29 @@ class Plugin(object):
             response = self.db_root.chatbase.add_to_ignore(name, duration=time_)
         if del_:
             response = self.db_root.chatbase.remove_from_ignore(name)
+        self.db_root.eventbase.add_command_event(CommandType.ADMINIGNORE, by_=player_id(mask),
+                                                 target=target, args=args)
+        self.pm(mask, mask.nick, response)
+
+    @command(permission='admin')
+    @asyncio.coroutine
+    def adminchannels(self, mask, target, args):
+        """ Change list of channels where one can get points for chatting
+
+            %%adminchannels get
+            %%adminchannels add <name> [<time>]
+            %%adminchannels del <name>
+        """
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminchannels', mask.nick, target))
+        get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
+        time_ = args.get('<time>')
+        if get:
+            response = self.db_root.chatbase.get_accepted_list()
+        if add:
+            time_ = try_fun(int, None, time_)
+            response = self.db_root.chatbase.add_to_accepted(name, duration=time_)
+        if del_:
+            response = self.db_root.chatbase.remove_from_accepted(name)
         self.db_root.eventbase.add_command_event(CommandType.ADMINIGNORE, by_=player_id(mask),
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
@@ -540,7 +564,7 @@ class Plugin(object):
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd", "reload", "admineffects", "adminreset"]
+        words = ["join", "leave", "cd", "reload", "admineffects", "adminignore", "adminchannels", "adminreset"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)

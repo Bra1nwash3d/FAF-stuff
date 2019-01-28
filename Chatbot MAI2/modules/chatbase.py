@@ -22,6 +22,7 @@ class Chatbase(persistent.Persistent):
         self.entities = BTrees.OOBTree.BTree()
         self.nick_to_id = BTrees.OOBTree.BTree()
         self.ignored_players = persistent.dict.PersistentDict()  # these can not get points from chatting
+        self.accepted_channels = persistent.dict.PersistentDict()  # in these one can get points from chatting
         self.eventbase = eventbase
         self.effectbase = effectbase
         self.spam_protect = spam_protect
@@ -128,9 +129,12 @@ class Chatbase(persistent.Persistent):
 
     def on_chat(self, msg, player_id: str, player_nick=None, channel_id=None):
         with lock:
-            if self.ignored_players.get(player_id, True):
-                chat_mult, points = 1, self.str_to_points(msg)
-                self.__generic_on_something(points, player_id, PointType.CHAT, player_nick, channel_id)
+            if channel_id not in self.accepted_channels:
+                return
+            if player_id in self.ignored_players:
+                return
+            chat_mult, points = 1, self.str_to_points(msg)
+            self.__generic_on_something(points, player_id, PointType.CHAT, player_nick, channel_id)
 
     def on_kick(self, by: str, target: str, channel: str, msg: str):
         with lock:
@@ -190,6 +194,7 @@ class Chatbase(persistent.Persistent):
             return '%s received effect: [%s]' % (entity.nick, effect.to_str())
 
     def add_to_ignore(self, id_: str, is_nick=False, duration=None) -> str:
+        """ add a player to the ignore list """
         with lock:
             id_ = id_ if not is_nick else self.nick_to_id.get(id_, id_)
             if id_ is None:
@@ -204,6 +209,7 @@ class Chatbase(persistent.Persistent):
             return 'Added %s to the ignore list!' % id_
 
     def get_ignore_list(self) -> str:
+        """ get players on the ignore list """
         with lock:
             items = []
             for id_, d in self.ignored_players.items():
@@ -212,6 +218,7 @@ class Chatbase(persistent.Persistent):
             return 'Ignored players: %s' % ', '.join(items)
 
     def remove_from_ignore(self, id_: str, is_nick=False) -> str:
+        """ remove a player to the ignore list """
         with lock:
             id_ = id_ if not is_nick else self.nick_to_id.get(id_, id_)
             if id_ is None:
@@ -221,3 +228,35 @@ class Chatbase(persistent.Persistent):
             self.ignored_players.pop(id_)
             self.save()
             return 'Removed %s from the ignore list!' % id_
+
+    def add_to_accepted(self, id_, duration=None) -> str:
+        """ add a channel to the list where one can get points for chatting """
+        with lock:
+            if id_ in self.accepted_channels.keys():
+                return '%s is already an accepted channel!' % id_
+            self.accepted_channels[id_] = (duration + time.time()) if duration is not None else duration
+            self.save()
+            if duration is not None:
+                self.queue.add(CallbackItem(duration, self.remove_from_accepted, id_))
+                return 'Added %s to the accepted channels list, will be removed in %s' % (id_, time_to_str(duration))
+            return 'Added %s to the accepted channels list!' % id_
+
+    def get_accepted_list(self) -> str:
+        """ get list of channels where one can get points for chatting """
+        with lock:
+            items = []
+            for id_, d in self.accepted_channels.items():
+                part, d = ('{n}', 0) if d is None else ('{n} ({d})', d)
+                items.append(part.format(**{'n': self.get(id_).id, 'd': time_to_str(d - time.time())}))
+            return 'List of accepted channels: %s' % ', '.join(items)
+
+    def remove_from_accepted(self, id_) -> str:
+        """ remove a channel from the list where one can get points for chatting """
+        with lock:
+            if id_ is None:
+                return 'Failed removing %s from the acepted channel list! The channel id was not found in the DB!' % id_
+            if self.accepted_channels.get(id_, False) is False:
+                return '%s is not an accepted channel!' % id_
+            self.accepted_channels.pop(id_)
+            self.save()
+            return 'Removed %s from the accepted channels list!' % id_

@@ -41,6 +41,7 @@ class CommandType(enum.Enum):
     CHATTIP = 'chattip'
     ADMINEFFECTS = 'admineffects'
     ADMINIGNORE = 'adminignore'
+    ADMINACCEPTED = 'adminaccepted'
     ADMINRESET = 'adminreset'
 
     @staticmethod
