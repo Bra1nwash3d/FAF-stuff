@@ -1,10 +1,12 @@
 import BTrees.OOBTree
-import persistent.list
+import persistent.dict
 import transaction
+import time
 from heapq import nlargest, nsmallest
-from modules.utils import get_logger, not_pinging_name, get_lock
+from modules.utils import get_logger, not_pinging_name, get_lock, time_to_str
 from modules.chatentity import ChatEntity
 from modules.callbackqueue import CallbackQueue
+from modules.callbackitem import CallbackItem
 from modules.eventbase import Eventbase
 from modules.timer import SpamProtect
 from modules.types import PointType
@@ -19,6 +21,7 @@ class Chatbase(persistent.Persistent):
         super(Chatbase, self).__init__()
         self.entities = BTrees.OOBTree.BTree()
         self.nick_to_id = BTrees.OOBTree.BTree()
+        self.ignored_players = persistent.dict.PersistentDict()  # these can not get points from chatting
         self.eventbase = eventbase
         self.effectbase = effectbase
         self.spam_protect = spam_protect
@@ -51,12 +54,12 @@ class Chatbase(persistent.Persistent):
             self._p_changed = True
             transaction.commit()
 
-    def add(self, id_, nick):
+    def add(self, id_: str, nick: str):
         with lock:
             e = self.get(id_)
             e.nick = nick
 
-    def get(self, id_, is_nick=False) -> ChatEntity:
+    def get(self, id_: str, is_nick=False) -> ChatEntity:
         """ get an entity of id, create if not existing """
         with lock:
             id_ = id_ if not is_nick else self.nick_to_id.get(id_, id_)
@@ -64,14 +67,14 @@ class Chatbase(persistent.Persistent):
                 self.entities[id_] = ChatEntity(id_)
             return self.entities[id_]
 
-    def get_id(self, nick):
+    def get_id(self, nick: str):
         """ get id of a nick, with abuse protection """
         with lock:
             if len(nick) < 3:
                 return None
             return self.nick_to_id.get(nick, None)
 
-    def get_k(self, k=5, largest=True, incl_players=True, incl_channels=True, point_type=None):
+    def get_k(self, k=5, largest=True, incl_players=True, incl_channels=True, point_type: PointType=None):
         """ get k of a group, filtered by """
         with lock:
             fun, default = (nlargest, -999999999) if largest else (nsmallest, 99999999999)
@@ -123,10 +126,11 @@ class Chatbase(persistent.Persistent):
             self.get(player_id).update_points(points*chat_mult, player_nick, type_=point_type, partial=partial)
             self.nick_to_id[player_nick] = player_id
 
-    def on_chat(self, msg, player_id, player_nick=None, channel_id=None):
+    def on_chat(self, msg, player_id: str, player_nick=None, channel_id=None):
         with lock:
-            chat_mult, points = 1, self.str_to_points(msg)
-            self.__generic_on_something(points, player_id, PointType.CHAT, player_nick, channel_id)
+            if self.ignored_players.get(player_id, True):
+                chat_mult, points = 1, self.str_to_points(msg)
+                self.__generic_on_something(points, player_id, PointType.CHAT, player_nick, channel_id)
 
     def on_kick(self, by: str, target: str, channel: str, msg: str):
         with lock:
@@ -184,3 +188,36 @@ class Chatbase(persistent.Persistent):
                 return 'Failed applying the effect to %s! It was probably not found...' % entity.nick
             entity.add_effect(effect)
             return '%s received effect: [%s]' % (entity.nick, effect.to_str())
+
+    def add_to_ignore(self, id_: str, is_nick=False, duration=None) -> str:
+        with lock:
+            id_ = id_ if not is_nick else self.nick_to_id.get(id_, id_)
+            if id_ is None:
+                return 'Failed adding %s to the ignore list! The player id was not found in the DB!' % id_
+            if id_ in self.ignored_players.keys():
+                return '%s is already on the ignore list!' % id_
+            self.ignored_players[id_] = (duration + time.time()) if duration is not None else duration
+            self.save()
+            if duration is not None:
+                self.queue.add(CallbackItem(duration, self.remove_from_ignore, id_))
+                return 'Added %s to the ignore list, will be removed in %s' % (id_, time_to_str(duration))
+            return 'Added %s to the ignore list!' % id_
+
+    def get_ignore_list(self) -> str:
+        with lock:
+            items = []
+            for id_, d in self.ignored_players.items():
+                part = '{n}' if d is None else '{n} ({d})'
+                items.append(part.format(**{'n': self.get(id_).nick, 'd': time_to_str(d - time.time())}))
+            return 'Ignored players: %s' % ', '.join(items)
+
+    def remove_from_ignore(self, id_: str, is_nick=False) -> str:
+        with lock:
+            id_ = id_ if not is_nick else self.nick_to_id.get(id_, id_)
+            if id_ is None:
+                return 'Failed removing %s from the ignore list! The player id was not found in the DB!' % id_
+            if self.ignored_players.get(id_, False) is False:
+                return '%s is not on the ignore list!' % id_
+            self.ignored_players.pop(id_)
+            self.save()
+            return 'Removed %s from the ignore list!' % id_

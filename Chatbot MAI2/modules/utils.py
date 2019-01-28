@@ -59,6 +59,8 @@ def try_fun(fun, default, *args, **kwargs):
 
 def time_to_str(seconds: int) -> str:
     # i know datetime exists, but it does not have access to hours/minutes
+    if seconds is None:
+        return None
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     if h > 0:

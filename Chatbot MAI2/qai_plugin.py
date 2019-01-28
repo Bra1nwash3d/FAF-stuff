@@ -487,6 +487,28 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.ADMINEFFECTS, by_=player_id(mask),
                                                  target=target, args=args)
 
+    @command(permission='admin')
+    @asyncio.coroutine
+    def adminignore(self, mask, target, args):
+        """ Change the ignore list
+
+            %%adminignore get
+            %%adminignore add <name> [<time>]
+            %%adminignore del <name>
+        """
+        get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
+        time_ = args.get('<time>')
+        if get:
+            response = self.db_root.chatbase.get_ignore_list()
+        if add:
+            time_ = try_fun(int, None, time_)
+            response = self.db_root.chatbase.add_to_ignore(name, duration=time_)
+        if del_:
+            response = self.db_root.chatbase.remove_from_ignore(name)
+        self.db_root.eventbase.add_command_event(CommandType.ADMINIGNORE, by_=player_id(mask),
+                                                 target=target, args=args)
+        self.pm(mask, mask.nick, response)
+
     @command(permission='admin', public=False)
     @nickserv_identified
     async def adminreset(self, mask, target, args):

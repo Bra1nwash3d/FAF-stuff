@@ -19,7 +19,7 @@ class CallbackQueue(persistent.Persistent):
 
     def __init__(self):
         super(CallbackQueue, self).__init__()
-        self.items = persistent.list.PersistentList()
+        self.items = []
         logger.info('Created new CallbackQueue')
 
     def reset(self):
