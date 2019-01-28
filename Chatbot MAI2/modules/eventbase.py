@@ -15,6 +15,12 @@ class Eventbase(persistent.Persistent):
         self.next_id = 0
         logger.info('Created new Eventbase')
 
+    def reset(self):
+        with lock:
+            self.events.clear()
+            self.save()
+            logger.info('Reset Eventbase')
+
     def update_vars(self, **_):
         # function to set misc vars
         with lock:

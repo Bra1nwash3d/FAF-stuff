@@ -40,6 +40,7 @@ class CommandType(enum.Enum):
     CHATEVENTS = 'chatevents'
     CHATTIP = 'chattip'
     ADMINEFFECTS = 'admineffects'
+    ADMINRESET = 'adminreset'
 
     @staticmethod
     def from_str(str_):

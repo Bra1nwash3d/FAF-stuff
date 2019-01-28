@@ -1,6 +1,7 @@
 import transaction
 import time
 import persistent
+import persistent.list
 import heapq
 import threading
 from modules.callbackitem import CallbackItem
@@ -18,8 +19,14 @@ class CallbackQueue(persistent.Persistent):
 
     def __init__(self):
         super(CallbackQueue, self).__init__()
-        self.items = []
+        self.items = persistent.list.PersistentList()
         logger.info('Created new CallbackQueue')
+
+    def reset(self):
+        with lock:
+            self.items.clear()
+            self.save()
+            logger.info('Reset CallbackQueue')
 
     def print(self):
         with lock:

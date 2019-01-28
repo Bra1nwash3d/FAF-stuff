@@ -31,6 +31,12 @@ class Chatbase(persistent.Persistent):
         self.save()
         logger.info('Created new Chatbase')
 
+    def reset(self):
+        with lock:
+            self.entities.clear()
+            self.save()
+            logger.info('Reset Chatbase')
+
     def update_vars(self, points_cost_on_kick=None, points_cost_on_ban=None, **_):
         with lock:
             # function to set misc vars

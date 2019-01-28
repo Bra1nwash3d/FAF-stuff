@@ -19,6 +19,14 @@ class SpamProtect:
 
         logger.info('Created new SpamProtect, watches over: %s' % str(self.protected_channels))
 
+    def reset(self):
+        with lock:
+            self.channels.clear()
+            self.timer.clear()
+            self.protected_channels.clear()
+            self.save()
+            logger.info('Reset SpamProtect')
+
     def update_vars(self, default_cd=None, **_):
         # function to set misc vars
         with lock:
@@ -29,7 +37,7 @@ class SpamProtect:
     def update_timer(self, timer=None):
         with lock:
             self.timer = timer if timer is not None else self.timer
-            logger.info('Updated SpamProtect timer %s' % str(self.timer))
+            logger.info('SpamProtect, updating timer: %s' % str(self.timer))
             self.save()
 
     def save(self):

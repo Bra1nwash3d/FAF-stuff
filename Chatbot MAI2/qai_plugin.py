@@ -60,6 +60,7 @@ class Plugin(object):
         self.db_con = self.db.open()
         self.db_root = self.db_con.root
         set_msg_fun(ChatType.IRC, self.irc_message)
+        # every manager/base added here should be able to be reset
         try:
             self.db_root.queue.print()
         except:
@@ -479,12 +480,36 @@ class Plugin(object):
 
             %%admineffects add <name> <effectid>
         """
-        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'adminreset', mask.nick, target))
         name, effect_id = args.get('<name>'), args.get('<effectid>')
         msg = self.db_root.chatbase.apply_effect(name, effect_id, is_player_nick=True, is_effect_name=False)
         self.pm(mask, mask.nick, msg)
         self.db_root.eventbase.add_command_event(CommandType.ADMINEFFECTS, by_=player_id(mask),
                                                  target=target, args=args)
+
+    @command(permission='admin', public=False)
+    @nickserv_identified
+    async def adminreset(self, mask, target, args):
+        """ Abuse admin powers to reset everything
+
+            %%adminreset
+        """
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
+        self.db_root.eventbase.add_command_event(CommandType.ADMINRESET, by_=player_id(mask),
+                                                 target=target, args=args)
+        self.reset()
+        self.pm(mask, mask.nick, "RESET EVERYTHING")
+
+    def reset(self):
+        epoch = self.__db_get(['chatlvlmisc', 'epoch'])
+        # maybe, just maybe, the database should be moved copied to keep old epochs accessible TODO
+        self.__db_add(['chatlvlmisc'], 'epoch', epoch+1, overwrite_if_exists=True, save=True)
+        logger.info('-'*100)
+        self.db_root.queue.reset()
+        self.db_root.chatbase.reset()
+        self.db_root.eventbase.reset()
+        self.db_root.spam_protect.reset()
+        self.on_restart()
 
     @command(permission='admin', public=False)
     async def hidden(self, mask, target, args):
@@ -493,7 +518,7 @@ class Plugin(object):
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd", "reload", "admineffects"]
+        words = ["join", "leave", "cd", "reload", "admineffects", "adminreset"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)
