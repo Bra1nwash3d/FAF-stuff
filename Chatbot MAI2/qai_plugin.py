@@ -480,7 +480,7 @@ class Plugin(object):
 
             %%admineffects add <name> <effectid>
         """
-        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'adminreset', mask.nick, target))
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
         name, effect_id = args.get('<name>'), args.get('<effectid>')
         msg = self.db_root.chatbase.apply_effect(name, effect_id, is_player_nick=True, is_effect_name=False)
         self.pm(mask, mask.nick, msg)
@@ -494,7 +494,7 @@ class Plugin(object):
 
             %%adminreset
         """
-        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'admineffects', mask.nick, target))
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminreset', mask.nick, target))
         self.db_root.eventbase.add_command_event(CommandType.ADMINRESET, by_=player_id(mask),
                                                  target=target, args=args)
         self.reset()
