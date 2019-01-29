@@ -252,6 +252,10 @@ class Chatbase(persistent.Persistent):
         """ add a channel to the list where one can get points for chatting """
         return self.__add_accepted('chat', self.remove_accepted_chat, id_, duration)
 
+    def add_accepted_game(self, id_: str, duration=None) -> str:
+        """ add a channel to the list where one can play chat games """
+        return self.__add_accepted('game', self.remove_accepted_game, id_, duration)
+
     def __get_accepted(self, type_: str) -> str:
         channels = self.__channels_by_type(type_)
         with lock:
@@ -264,6 +268,13 @@ class Chatbase(persistent.Persistent):
     def get_accepted_chat(self) -> str:
         """ get list of channels where one can get points for chatting """
         return self.__get_accepted('chat')
+
+    def get_accepted_game(self) -> str:
+        """ get list of channels where one can play chat games """
+        return self.__get_accepted('game')
+
+    def is_accepted_for_games(self, channel_name: str):
+        return channel_name in self.game_channels.keys()
 
     def __remove_accepted(self, type_: str, id_: str) -> str:
         channels = self.__channels_by_type(type_)
@@ -279,3 +290,7 @@ class Chatbase(persistent.Persistent):
     def remove_accepted_chat(self, id_: str) -> str:
         """ remove a channel from the list where one can get points for chatting """
         return self.__remove_accepted('chat', id_)
+
+    def remove_accepted_game(self, id_: str) -> str:
+        """ remove a channel from the list where one can play chat games"""
+        return self.__remove_accepted('game', id_)

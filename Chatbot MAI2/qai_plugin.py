@@ -13,6 +13,7 @@ from decorators import nickserv_identified, channel_only
 from modules import chatbase, eventbase
 from modules.timer import SpamProtect
 from modules.effectbase import EffectBase
+from modules.gamebase import Gamebase
 from modules.callbackqueue import CallbackQueue, CallbackQueueWorkerThread
 from modules.types import *
 from modules.utils import get_logger, level_to_points, try_fun, set_msg_fun
@@ -84,6 +85,11 @@ class Plugin(object):
         except:
             self.db_root.chatbase = chatbase.Chatbase(self.db_root.eventbase, self.db_root.spam_protect,
                                                       self.db_root.queue, self.db_root.effectbase)
+        try:
+            self.db_root.gamebase.print()
+        except:
+            self.db_root.gamebase = Gamebase(self.db_root.eventbase, self.db_root.queue, self.db_root.chatbase,
+                                             self.db_root.effectbase, self.db_root.spam_protect)
 
     @classmethod
     def reload(cls, old):
@@ -208,6 +214,7 @@ class Plugin(object):
         vars_ = self.__db_get(['vars'])
         self.db_root.chatbase.update_vars(**vars_)
         self.db_root.eventbase.update_vars(**vars_)
+        self.db_root.gamebase.update_vars(**vars_)
         self.db_root.spam_protect.update_vars(**vars_)
 
         logger.info('Admins: %s' % str(ADMINS))
@@ -421,6 +428,42 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.CHATTIP, by_=player_id(mask), target=target, args=args)
         self.pm(mask, target, msg)
 
+    @command
+    @asyncio.coroutine
+    def cr(self, mask, target, args):
+        """ Shortcut to the chatroulette command
+
+            %%cr <points/all>
+        """
+        yield from self.chatroulette(mask, target, args)
+
+    @command
+    @asyncio.coroutine
+    def chatroulette(self, mask, target, args):
+        """ Play the chat point roulette! Bet points, 20s after the initial roll, a winner is chosen.
+            Probability scales with points bet. The winner gets all points.
+
+            %%chatroulette <points/all>
+        """
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatroulette', mask.nick, target))
+        points = args.get('<points/all>')
+        if points == 'all':
+            points = self.db_root.chatbase.get(player_id(mask)).get_points()
+        else:
+            points = try_fun(int, None, points)
+        if points is None:
+            self.pm(mask, target, 'Failed understanding your point amount!')
+        try:
+            game = self.db_root.gamebase.get_roulette_game(ChatType.IRC, target)
+            game.join(mask.nick, points)
+        except Exception as e:
+            self.pm(mask, target, str(e))
+        self.db_root.eventbase.add_command_event(CommandType.CHATROULETTE, by_=player_id(mask),
+                                                 target=target, args=args)
+
     @command(show_in_help_list=False)
     async def test(self, mask, target, args):
         """ Just testing stuff
@@ -533,28 +576,56 @@ class Plugin(object):
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
+    @command(permission='admin')
+    @asyncio.coroutine
+    def admingamechannels(self, mask, target, args):
+        """ Change list of channels where one can play chatgames
+
+            %%admingamechannels get
+            %%admingamechannels add <name> [<time>]
+            %%admingamechannels del <name>
+        """
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'admingamechannels', mask.nick, target))
+        get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
+        time_ = args.get('<time>')
+        if get:
+            response = self.db_root.chatbase.get_accepted_game()
+        if add:
+            time_ = try_fun(int, None, time_)
+            response = self.db_root.chatbase.add_accepted_game(name, duration=time_)
+        if del_:
+            response = self.db_root.chatbase.remove_accepted_game(name)
+        self.db_root.eventbase.add_command_event(CommandType.ADMINGAMECHANNELS, by_=player_id(mask),
+                                                 target=target, args=args)
+        self.pm(mask, mask.nick, response)
+
     @command(permission='admin', public=False)
     @nickserv_identified
     async def adminreset(self, mask, target, args):
         """ Abuse admin powers to reset everything
 
-            %%adminreset
+            %%adminreset all
+            %%adminreset games
         """
         logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminreset', mask.nick, target))
+        all_, games = args.get('all', False), args.get('games', False)
         self.db_root.eventbase.add_command_event(CommandType.ADMINRESET, by_=player_id(mask),
                                                  target=target, args=args)
-        self.reset()
-        self.pm(mask, mask.nick, "RESET EVERYTHING")
+        self.reset(all_=all_, games=games)
+        self.pm(mask, mask.nick, "RESET STUFF")
 
-    def reset(self):
+    def reset(self, all_=False, games=False):
         epoch = self.__db_get(['chatlvlmisc', 'epoch'])
         # maybe, just maybe, the database should be moved copied to keep old epochs accessible TODO
         self.__db_add(['chatlvlmisc'], 'epoch', epoch+1, overwrite_if_exists=True, save=True)
         logger.info('-'*100)
-        self.db_root.queue.reset()
-        self.db_root.chatbase.reset()
-        self.db_root.eventbase.reset()
-        self.db_root.spam_protect.reset()
+        if all_:
+            self.db_root.queue.reset()
+            self.db_root.eventbase.reset()
+            self.db_root.chatbase.reset()
+            self.db_root.spam_protect.reset()
+        if all_ or games:
+            self.db_root.gamebase.reset()
         self.on_restart()
 
     @command(permission='admin', public=False)

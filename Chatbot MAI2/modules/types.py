@@ -5,6 +5,7 @@ class PointType(enum.Enum):
     CHAT = 'chat'
     KICK = 'kick'
     CHATTIP = 'chattip'
+    ROULETTE = 'roulette'
 
     @staticmethod
     def as_str(type_):
@@ -39,9 +40,11 @@ class CommandType(enum.Enum):
     CHATLADDER = 'chatladder'
     CHATEVENTS = 'chatevents'
     CHATTIP = 'chattip'
+    CHATROULETTE = 'chatroulette'
     ADMINEFFECTS = 'admineffects'
     ADMINIGNORE = 'adminignore'
     ADMINCHATCHANNELS = 'adminchatchannels'
+    ADMINGAMECHANNELS = 'admingamechannels'
     ADMINRESET = 'adminreset'
 
     @staticmethod
@@ -76,6 +79,23 @@ class EventType(enum.Enum):
         }.get(str_.lower(), None)
 
 
+class GameType(enum.Enum):
+    ROULETTE = 'roulette'
+
+    @staticmethod
+    def from_str(str_):
+        if str_ is None:
+            return None
+        for e in GameType:
+            if e.value == str_:
+                return e
+        return {
+        }.get(str_.lower(), None)
+
+
 class ChatType(enum.Enum):
     IRC = 'irc'
     IDK = 'idk'
+
+
+print(EventType.from_str('tip'))
