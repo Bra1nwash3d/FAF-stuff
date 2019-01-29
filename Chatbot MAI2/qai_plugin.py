@@ -512,14 +512,14 @@ class Plugin(object):
 
     @command(permission='admin')
     @asyncio.coroutine
-    def adminchannels(self, mask, target, args):
+    def adminchatchannels(self, mask, target, args):
         """ Change list of channels where one can get points for chatting
 
-            %%adminchannels get
-            %%adminchannels add <name> [<time>]
-            %%adminchannels del <name>
+            %%adminchatchannels get
+            %%adminchatchannels add <name> [<time>]
+            %%adminchatchannels del <name>
         """
-        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminchannels', mask.nick, target))
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminchatchannels', mask.nick, target))
         get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
         time_ = args.get('<time>')
         if get:
@@ -529,7 +529,7 @@ class Plugin(object):
             response = self.db_root.chatbase.add_to_accepted(name, duration=time_)
         if del_:
             response = self.db_root.chatbase.remove_from_accepted(name)
-        self.db_root.eventbase.add_command_event(CommandType.ADMINIGNORE, by_=player_id(mask),
+        self.db_root.eventbase.add_command_event(CommandType.ADMINCHATCHANNELS, by_=player_id(mask),
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
@@ -564,7 +564,7 @@ class Plugin(object):
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd", "reload", "admineffects", "adminignore", "adminchannels", "adminreset"]
+        words = ["join", "leave", "cd", "reload", "admineffects", "adminignore", "adminchatchannels", "adminreset"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)

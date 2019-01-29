@@ -22,7 +22,7 @@ class Chatbase(persistent.Persistent):
         self.entities = BTrees.OOBTree.BTree()
         self.nick_to_id = BTrees.OOBTree.BTree()
         self.ignored_players = persistent.dict.PersistentDict()  # these can not get points from chatting
-        self.accepted_channels = persistent.dict.PersistentDict()  # in these one can get points from chatting
+        self.chat_channels = persistent.dict.PersistentDict()  # in these one can get points from chatting
         self.eventbase = eventbase
         self.effectbase = effectbase
         self.spam_protect = spam_protect
@@ -129,7 +129,7 @@ class Chatbase(persistent.Persistent):
 
     def on_chat(self, msg, player_id: str, player_nick=None, channel_id=None):
         with lock:
-            if channel_id not in self.accepted_channels:
+            if channel_id not in self.chat_channels:
                 return
             if player_id in self.ignored_players:
                 return
@@ -232,9 +232,9 @@ class Chatbase(persistent.Persistent):
     def add_to_accepted(self, id_, duration=None) -> str:
         """ add a channel to the list where one can get points for chatting """
         with lock:
-            if id_ in self.accepted_channels.keys():
+            if id_ in self.chat_channels.keys():
                 return '%s is already an accepted channel!' % id_
-            self.accepted_channels[id_] = (duration + time.time()) if duration is not None else duration
+            self.chat_channels[id_] = (duration + time.time()) if duration is not None else duration
             self.save()
             if duration is not None:
                 self.queue.add(CallbackItem(duration, self.remove_from_accepted, id_))
@@ -245,7 +245,7 @@ class Chatbase(persistent.Persistent):
         """ get list of channels where one can get points for chatting """
         with lock:
             items = []
-            for id_, d in self.accepted_channels.items():
+            for id_, d in self.chat_channels.items():
                 part, d = ('{n}', 0) if d is None else ('{n} ({d})', d)
                 items.append(part.format(**{'n': self.get(id_).id, 'd': time_to_str(d - time.time())}))
             return 'List of accepted channels: %s' % ', '.join(items)
@@ -255,8 +255,8 @@ class Chatbase(persistent.Persistent):
         with lock:
             if id_ is None:
                 return 'Failed removing %s from the acepted channel list! The channel id was not found in the DB!' % id_
-            if self.accepted_channels.get(id_, False) is False:
+            if self.chat_channels.get(id_, False) is False:
                 return '%s is not an accepted channel!' % id_
-            self.accepted_channels.pop(id_)
+            self.chat_channels.pop(id_)
             self.save()
             return 'Removed %s from the accepted channels list!' % id_
