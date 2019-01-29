@@ -23,6 +23,7 @@ class Chatbase(persistent.Persistent):
         self.nick_to_id = BTrees.OOBTree.BTree()
         self.ignored_players = persistent.dict.PersistentDict()  # these can not get points from chatting
         self.chat_channels = persistent.dict.PersistentDict()  # in these one can get points from chatting
+        self.game_channels = persistent.dict.PersistentDict()  # in these one can play chat games
         self.eventbase = eventbase
         self.effectbase = effectbase
         self.spam_protect = spam_protect
@@ -229,34 +230,52 @@ class Chatbase(persistent.Persistent):
             self.save()
             return 'Removed %s from the ignore list!' % id_
 
-    def add_to_accepted(self, id_, duration=None) -> str:
-        """ add a channel to the list where one can get points for chatting """
+    def __channels_by_type(self, type_: str) -> dict:
+        return {
+            'chat': self.chat_channels,
+            'game': self.game_channels,
+        }.get(type_)
+
+    def __add_accepted(self, type_: str, callback_fun, id_: str, duration=None) -> str:
+        channels = self.__channels_by_type(type_)
         with lock:
-            if id_ in self.chat_channels.keys():
+            if id_ in channels.keys():
                 return '%s is already an accepted channel!' % id_
-            self.chat_channels[id_] = (duration + time.time()) if duration is not None else duration
+            channels[id_] = (duration + time.time()) if duration is not None else duration
             self.save()
             if duration is not None:
-                self.queue.add(CallbackItem(duration, self.remove_from_accepted, id_))
+                self.queue.add(CallbackItem(duration, callback_fun, id_))
                 return 'Added %s to the accepted channels list, will be removed in %s' % (id_, time_to_str(duration))
             return 'Added %s to the accepted channels list!' % id_
 
-    def get_accepted_list(self) -> str:
-        """ get list of channels where one can get points for chatting """
+    def add_accepted_chat(self, id_: str, duration=None) -> str:
+        """ add a channel to the list where one can get points for chatting """
+        return self.__add_accepted('chat', self.remove_accepted_chat, id_, duration)
+
+    def __get_accepted(self, type_: str) -> str:
+        channels = self.__channels_by_type(type_)
         with lock:
             items = []
-            for id_, d in self.chat_channels.items():
+            for id_, d in channels.items():
                 part, d = ('{n}', 0) if d is None else ('{n} ({d})', d)
                 items.append(part.format(**{'n': self.get(id_).id, 'd': time_to_str(d - time.time())}))
             return 'List of accepted channels: %s' % ', '.join(items)
 
-    def remove_from_accepted(self, id_) -> str:
-        """ remove a channel from the list where one can get points for chatting """
+    def get_accepted_chat(self) -> str:
+        """ get list of channels where one can get points for chatting """
+        return self.__get_accepted('chat')
+
+    def __remove_accepted(self, type_: str, id_: str) -> str:
+        channels = self.__channels_by_type(type_)
         with lock:
             if id_ is None:
                 return 'Failed removing %s from the acepted channel list! The channel id was not found in the DB!' % id_
-            if self.chat_channels.get(id_, False) is False:
+            if channels.get(id_, False) is False:
                 return '%s is not an accepted channel!' % id_
-            self.chat_channels.pop(id_)
+            channels.pop(id_)
             self.save()
             return 'Removed %s from the accepted channels list!' % id_
+
+    def remove_accepted_chat(self, id_: str) -> str:
+        """ remove a channel from the list where one can get points for chatting """
+        return self.__remove_accepted('chat', id_)

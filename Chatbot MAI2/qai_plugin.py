@@ -523,12 +523,12 @@ class Plugin(object):
         get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
         time_ = args.get('<time>')
         if get:
-            response = self.db_root.chatbase.get_accepted_list()
+            response = self.db_root.chatbase.get_accepted_chat()
         if add:
             time_ = try_fun(int, None, time_)
-            response = self.db_root.chatbase.add_to_accepted(name, duration=time_)
+            response = self.db_root.chatbase.add_accepted_chat(name, duration=time_)
         if del_:
-            response = self.db_root.chatbase.remove_from_accepted(name)
+            response = self.db_root.chatbase.remove_accepted_chat(name)
         self.db_root.eventbase.add_command_event(CommandType.ADMINCHATCHANNELS, by_=player_id(mask),
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
