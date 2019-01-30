@@ -20,6 +20,7 @@ def get_logger(name='bot', level='info'):
     logger.setLevel(level)
     ch = logging.StreamHandler()
     ch.setLevel(level)
+    ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s'))
     logger.addHandler(ch)
     return logger
 
