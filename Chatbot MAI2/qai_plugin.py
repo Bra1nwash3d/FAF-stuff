@@ -23,7 +23,7 @@ logger = get_logger('main')
 ADMINS = []  # only required until commands are available to the public
 MAIN_CHANNEL = '#aeolus'
 
-NICKSERV_WAIT_TICKS = 60
+NICKSERV_WAIT_TICKS = 200
 NICKSERVIDENTIFIEDRESPONSES = {}
 NICKSERVRESPONSESLOCK = None
 
@@ -61,35 +61,46 @@ class Plugin(object):
         self.db_con = self.db.open()
         self.db_root = self.db_con.root
         set_msg_fun(ChatType.IRC, self.irc_message)
+
         # every manager/base added here should be able to be reset
+        # soooo turns out sometimes they seem to lose ref to each other and get a new object? requires the set methods
         try:
             self.db_root.queue.print()
         except:
             self.db_root.queue = CallbackQueue()
         self.queue_thread = CallbackQueueWorkerThread(self.db_root.queue)
         self.queue_thread.start()
+
         try:
+            self.db_root.effectbase.set(self.db_root.queue)
             self.db_root.effectbase.print()
         except:
             self.db_root.effectbase = EffectBase(self.db_root.queue)
+
         try:
             self.db_root.spam_protect.print()
         except:
             self.db_root.spam_protect = SpamProtect([MAIN_CHANNEL])
+
         try:
             self.db_root.eventbase.print()
         except:
             self.db_root.eventbase = eventbase.Eventbase()
+
+        chatbase_args = [self.db_root.eventbase, self.db_root.spam_protect, self.db_root.queue, self.db_root.effectbase]
         try:
+            self.db_root.chatbase.set(*chatbase_args)
             self.db_root.chatbase.print()
         except:
-            self.db_root.chatbase = chatbase.Chatbase(self.db_root.eventbase, self.db_root.spam_protect,
-                                                      self.db_root.queue, self.db_root.effectbase)
+            self.db_root.chatbase = chatbase.Chatbase(*chatbase_args)
+
+        gamebase_args = [self.db_root.eventbase, self.db_root.queue, self.db_root.chatbase,
+                         self.db_root.effectbase, self.db_root.spam_protect]
         try:
+            self.db_root.gamebase.set(*gamebase_args)
             self.db_root.gamebase.print()
         except:
-            self.db_root.gamebase = Gamebase(self.db_root.eventbase, self.db_root.queue, self.db_root.chatbase,
-                                             self.db_root.effectbase, self.db_root.spam_protect)
+            self.db_root.gamebase = Gamebase(*gamebase_args)
 
     @classmethod
     def reload(cls, old):
@@ -458,7 +469,8 @@ class Plugin(object):
             self.pm(mask, target, 'Failed understanding your point amount!')
         try:
             game = self.db_root.gamebase.get_roulette_game(ChatType.IRC, target)
-            game.join(mask.nick, points)
+            if game is not None:
+                game.join(mask.nick, points)
         except Exception as e:
             self.pm(mask, target, str(e))
         self.db_root.eventbase.add_command_event(CommandType.CHATROULETTE, by_=player_id(mask),
@@ -530,7 +542,7 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.ADMINEFFECTS, by_=player_id(mask),
                                                  target=target, args=args)
 
-    @command(permission='admin')
+    @command(permission='admin', public=False)
     @asyncio.coroutine
     def adminignore(self, mask, target, args):
         """ Change the ignore list
@@ -553,7 +565,7 @@ class Plugin(object):
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
-    @command(permission='admin')
+    @command(permission='admin', public=False)
     @asyncio.coroutine
     def adminchatchannels(self, mask, target, args):
         """ Change list of channels where one can get points for chatting
@@ -576,7 +588,7 @@ class Plugin(object):
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
-    @command(permission='admin')
+    @command(permission='admin', public=False)
     @asyncio.coroutine
     def admingamechannels(self, mask, target, args):
         """ Change list of channels where one can play chatgames
@@ -600,7 +612,7 @@ class Plugin(object):
         self.pm(mask, mask.nick, response)
 
     @command(permission='admin', public=False)
-    @nickserv_identified
+    # @nickserv_identified
     async def adminreset(self, mask, target, args):
         """ Abuse admin powers to reset everything
 

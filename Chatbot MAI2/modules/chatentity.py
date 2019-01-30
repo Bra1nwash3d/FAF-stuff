@@ -8,7 +8,7 @@ from modules.utils import get_msg_fun as gmf
 from modules.types import PointType, ChatType
 from modules.effects import PointsEffect
 
-logger = get_logger('chatentity', level='debug')
+logger = get_logger('chatentity')
 
 
 class ChatEntity(persistent.Persistent):

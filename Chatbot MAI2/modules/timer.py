@@ -15,7 +15,7 @@ class SpamProtect:
         self.protected_channels = protected_channels if protected_channels is not None else []
 
         # vars
-        self.default_cd = 0
+        self.default_cd = 60
 
         logger.info('Created new SpamProtect, watches over: %s' % str(self.protected_channels))
 
@@ -23,16 +23,17 @@ class SpamProtect:
         with lock:
             self.channels.clear()
             self.timer.clear()
-            self.protected_channels.clear()
+            # self.protected_channels.clear()
             self.save()
             logger.info('Reset SpamProtect')
 
-    def update_vars(self, default_cd=None, **_):
+    def update_vars(self, default_cd=None, protected_channels=None, **_):
         # function to set misc vars
         with lock:
             self.default_cd = default_cd if default_cd is not None else self.default_cd
+            self.protected_channels = protected_channels if protected_channels is not None else self.protected_channels
             self.save()
-            logger.info('SpamProtect, updating defaultcd:%d' % default_cd)
+            logger.info('SpamProtect, updating defaults %s / %s' % (default_cd, protected_channels))
 
     def update_timer(self, timer=None):
         with lock:
@@ -49,19 +50,23 @@ class SpamProtect:
         with lock:
             logger.info('Loaded SpamProtect, watches over: %s' % str(self.protected_channels))
 
-    def is_in_protected_channels(self, channel):
+    def is_in_protected_channels(self, channel: str):
         with lock:
             return channel in self.channels
 
-    def get_remaining(self, channel, cmd, include_unprotected=False):
+    def get_remaining(self, channel: str, cmd: str, include_unprotected=False) -> float:
         with lock:
+            logger.debug('Spamprotect: get remaining: %s, %s, %s' % (channel, cmd, include_unprotected))
             if channel not in self.channels.keys():
                 self.channels[channel] = persistent.dict.PersistentDict()
             if channel in self.protected_channels or include_unprotected:
+                logger.debug('Spamprotect: xxxxx %s' % self.timer.get(cmd, self.default_cd))
+                logger.debug('Spamprotect: xxxxx %s' % self.timer)
+                logger.debug('Spamprotect: xxxxx %s' % self.default_cd)
                 return (self.channels[channel].get(cmd, 0) + self.timer.get(cmd, self.default_cd)) - time.time()
-            return 0
+            return 0.0
 
-    def set_now(self, channel, cmd):
+    def set_now(self, channel: str, cmd: str):
         with lock:
             if channel not in self.channels.keys():
                 self.channels[channel] = persistent.dict.PersistentDict()
@@ -69,7 +74,7 @@ class SpamProtect:
             logger.debug('Spamprotect: set to now: %s, %s' % (channel, cmd))
             transaction.commit()
 
-    def is_spam(self, channel, cmd, update=True, include_unprotected=False):
+    def is_spam(self, channel: str, cmd: str, update=True, include_unprotected=False) -> (bool, float):
         with lock:
             rem_time = self.get_remaining(channel, cmd, include_unprotected)
             logger.debug('Spamprotect: time left: %s, %s, %s' % (channel, cmd, rem_time))

@@ -40,7 +40,7 @@ class Game(persistent.Persistent):
         self.on_end_callback(self)
 
     def ended(self) -> bool:
-        raise not self.is_running
+        return not self.is_running
 
     def _reserve_points(self, name: str, amount: int, partial=False):
         """ reserves 'amount' point of its point_type """
@@ -64,7 +64,7 @@ class Game(persistent.Persistent):
         for name in dct.keys():
             if name in names:
                 continue
-            self._message(name, 'The game ended, you lost this one!')
+            self._message(name, 'The game ended, someone else won!')
             self.save()
 
     def _message(self, name: str, msg: str):

@@ -36,6 +36,12 @@ class Chatbase(persistent.Persistent):
         self.save()
         logger.info('Created new Chatbase')
 
+    def set(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue, effectbase: EffectBase):
+        self.eventbase = eventbase
+        self.effectbase = effectbase
+        self.spam_protect = spam_protect
+        self.queue = queue
+
     def reset(self):
         with lock:
             self.entities.clear()

@@ -24,6 +24,9 @@ class EffectBase(persistent.Persistent):
         self.update_effects_list(self.json_path)
         logger.info('Creating new EffectBase')
 
+    def set(self, queue: CallbackQueue):
+        self.queue = queue
+
     def reset(self):
         with lock:
             # actually nothing to be done, as effects are in the queue

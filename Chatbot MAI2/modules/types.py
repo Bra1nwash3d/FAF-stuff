@@ -96,6 +96,3 @@ class GameType(enum.Enum):
 class ChatType(enum.Enum):
     IRC = 'irc'
     IDK = 'idk'
-
-
-print(EventType.from_str('tip'))

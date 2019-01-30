@@ -1,4 +1,5 @@
 import random
+from modules.utils import time_to_str
 from modules.games.game import Game
 from modules.types import ChatType, GameType, PointType
 from modules.callbackqueue import CallbackQueue
@@ -18,7 +19,8 @@ class RouletteGame(Game):
         self.queue.add(CallbackItem(duration, self.select_winner))
         self.total_points = 0
         self.save()
-        self._message(self.channel, "A new roulette game was started! Bet your points now!")
+        self._message(self.channel, "A new roulette game was started! You have %s to bet your points!"
+                      % time_to_str(duration))
         logger.debug('Created new RouletteGame')
 
     def join(self, name: str, points: int):
