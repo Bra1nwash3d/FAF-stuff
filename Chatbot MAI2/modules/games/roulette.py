@@ -1,4 +1,4 @@
-import transaction
+import random
 from modules.games.game import Game
 from modules.types import ChatType, GameType, PointType
 from modules.callbackqueue import CallbackQueue
@@ -33,21 +33,16 @@ class RouletteGame(Game):
                     'e': int(self.players.get(name, 0)*1000/self.total_points)/10,
                 }))
                 return
-            self._message(name, 'Failed adding points :(')
+            self._message(self.channel, 'Failed adding points for %s :(' % name)
 
     def print(self):
         with lock:
             logger.debug('Loaded RouletteGame, TODO')
 
-    def save(self):
-        with lock:
-            self._p_changed = True
-            transaction.commit()
-
     def select_winner(self):
         with lock:
-            winners = list(self.players.keys())
+            winners = random.choices(list(self.players.keys()), list(self.players.values()))
             logger.debug('RouletteGame select winner %s' % winners)
-            self._pay_winners(winners)
+            self._pay_winners(self.players, winners)
             self._message(self.channel, 'The roulette game ended! Winner: %s' % ', '.join(winners))
             self.end()

@@ -1,13 +1,20 @@
 from modules.types import PointType
+import random
 
 
-print(PointType.CHATTIP.value)
-for x in PointType:
-    print(x)
+a = {
+    'a': 70,
+    'b': 20,
+    'c': 10
+}
+drawn = {
+    'a': 0,
+    'b': 0,
+    'c': 0,
+}
 
-print([None, 1].count(None))
+for i in range(10000):
+    x = random.choices(list(a.keys()), list(a.values()))
+    drawn[x[0]] += 1
 
-a = {'a': False, 'b': True}
-a.pop('b')
-print('a' in a)
-print('b' in a)
+print(drawn)

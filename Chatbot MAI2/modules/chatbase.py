@@ -20,7 +20,7 @@ class Chatbase(persistent.Persistent):
     def __init__(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue, effectbase: EffectBase):
         super(Chatbase, self).__init__()
         self.entities = BTrees.OOBTree.BTree()
-        self.nick_to_id = BTrees.OOBTree.BTree()
+        self.nick_to_id = persistent.dict.PersistentDict()
         self.ignored_players = persistent.dict.PersistentDict()  # these can not get points from chatting
         self.chat_channels = persistent.dict.PersistentDict()  # in these one can get points from chatting
         self.game_channels = persistent.dict.PersistentDict()  # in these one can play chat games

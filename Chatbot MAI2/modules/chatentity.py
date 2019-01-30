@@ -8,7 +8,7 @@ from modules.utils import get_msg_fun as gmf
 from modules.types import PointType, ChatType
 from modules.effects import PointsEffect
 
-logger = get_logger('chatentity')
+logger = get_logger('chatentity', level='debug')
 
 
 class ChatEntity(persistent.Persistent):
@@ -72,7 +72,7 @@ class ChatEntity(persistent.Persistent):
         self.points[type_] = self.points.get(type_, 0) + points
         self.point_sum += points
         self.save()
-        logger.debug('udpated {id}:{nick} by d:{delta}/p:{points} points of type "{type}", total is {p}'.format(**{
+        logger.debug('updated {id}:{nick} by d:{delta}/p:{points} points of type "{type}", total is {p}'.format(**{
             'id': self.id,
             'nick': nick,
             'p': self.points[type_],
