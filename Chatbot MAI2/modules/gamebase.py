@@ -41,7 +41,6 @@ class Gamebase(persistent.Persistent):
 
     def reset(self):
         with lock:
-            # TODO go through games and .reset them
             for game in self.current_games.values():
                 game.reset()
             self.current_games.clear()
@@ -88,7 +87,6 @@ class Gamebase(persistent.Persistent):
             raise ValueError('Another game is already running in channel %s!' % channel)
 
     def get_roulette_game(self, chat_type: ChatType, channel: str, requested_by: str) -> RouletteGame:
-        # TODO add events
         with lock:
             game = self.__get_game(channel, GameType.ROULETTE)
             if game is None:
@@ -102,8 +100,7 @@ class Gamebase(persistent.Persistent):
             return game
 
     def remove_game(self, game: Game):
-        # callback for games that ended
-        # TODO update spamprotect
+        """ callback for games that ended """
         logger.info('remove game: %s' % game.game_type)
         with lock:
             if game is None:

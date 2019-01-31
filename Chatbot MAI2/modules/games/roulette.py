@@ -1,7 +1,6 @@
 import random
 from modules.utils import time_to_str
 from modules.games.game import Game
-from modules.event import ChatRouletteEvent
 from modules.types import ChatType, GameType, PointType
 from modules.callbackqueue import CallbackQueue
 from modules.callbackitem import CallbackItem
