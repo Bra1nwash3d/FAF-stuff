@@ -24,9 +24,6 @@ class Game(persistent.Persistent):
         self.on_end_callback = on_end_callback
         self.is_running = True
 
-    def print(self):
-        raise NotImplementedError()
-
     def join(self, name: str, points: int):
         return self._reserve_points(name, points)
 

@@ -37,10 +37,6 @@ class RouletteGame(Game):
                 return
             self._message(self.channel, 'Failed adding points for %s :(' % name)
 
-    def print(self):
-        with lock:
-            logger.debug('Loaded RouletteGame, TODO')
-
     def select_winner(self):
         with lock:
             winners = random.choices(list(self.players.keys()), list(self.players.values()))
