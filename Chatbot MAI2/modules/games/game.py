@@ -10,12 +10,13 @@ logger = get_logger('game')
 
 
 class Game(persistent.Persistent):
-    def __init__(self, chat_type: ChatType, channel: str, queue: CallbackQueue, on_end_callback,
+    def __init__(self, chat_type: ChatType, channel: str, requested_by: str, queue: CallbackQueue, on_end_callback,
                  game_type: GameType, point_type: PointType, chatbase: Chatbase):
         super(Game, self).__init__()
         self.players = persistent.dict.PersistentDict()  # name to points
         self.chat_type = chat_type
         self.channel = channel
+        self.requested_by = requested_by
         self.queue = queue
         self.chatbase = chatbase
         self.game_type = game_type

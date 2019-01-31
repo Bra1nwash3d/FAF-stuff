@@ -27,6 +27,7 @@ class Gamebase(persistent.Persistent):
         self.queue = queue
         self.game_cooldowns = {}
         self.default_game_cooldown = 30
+        self.default_roulette_duration = 60
         self.save()
         logger.info('Created new Gamebase')
 
@@ -47,11 +48,13 @@ class Gamebase(persistent.Persistent):
             self.save()
             logger.info('Reset Gamebase')
 
-    def update_vars(self, game_cooldowns=None, default_game_cooldown=None, **_):
+    def update_vars(self, game_cooldowns=None, default_game_cooldown=None, default_roulette_duration=None, **_):
         with lock:
             # function to set misc vars
             self.default_game_cooldown = \
                 default_game_cooldown if default_game_cooldown is not None else self.default_game_cooldown
+            self.default_roulette_duration =\
+                default_roulette_duration if default_roulette_duration is not None else self.default_roulette_duration
             if game_cooldowns is not None:
                 self.game_cooldowns.update(game_cooldowns)
             self.save()
@@ -85,8 +88,6 @@ class Gamebase(persistent.Persistent):
             raise ValueError('Another game is already running in channel %s!' % channel)
 
     def get_roulette_game(self, chat_type: ChatType, channel: str) -> RouletteGame:
-        # TODO check with spamprotect
-        # TODO make roulette game duration settable
         # TODO add events
         with lock:
             game = self.__get_game(channel, GameType.ROULETTE)
@@ -95,7 +96,8 @@ class Gamebase(persistent.Persistent):
                 is_spam, rem_time = self.spam_protect.is_spam(channel, GameType.ROULETTE.value)
                 if is_spam:
                     raise ValueError('Roulette is on cooldown, please wait %s.' % time_to_str(rem_time))
-                game = RouletteGame(chat_type, channel, self.queue, self.remove_game, self.chatbase, 60)  # TODO variable durations?
+                game = RouletteGame(chat_type, channel, self.queue, self.remove_game, self.chatbase,
+                                    self.default_roulette_duration)
                 self.current_games[channel] = game
             return game
 

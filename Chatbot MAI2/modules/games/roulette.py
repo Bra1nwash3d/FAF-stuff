@@ -12,9 +12,9 @@ lock = get_lock('roulette_game')
 
 
 class RouletteGame(Game):
-    def __init__(self, chat_type: ChatType, channel: str, queue: CallbackQueue, on_end_callback, chatbase: Chatbase,
-                 duration: int):
-        super(RouletteGame, self).__init__(chat_type, channel, queue, on_end_callback,
+    def __init__(self, chat_type: ChatType, channel: str, requested_by: str, queue: CallbackQueue, on_end_callback,
+                 chatbase: Chatbase, duration: int):
+        super(RouletteGame, self).__init__(chat_type, channel, requested_by, queue, on_end_callback,
                                            GameType.ROULETTE, PointType.ROULETTE, chatbase)
         self.queue.add(CallbackItem(duration, self.select_winner))
         self.total_points = 0

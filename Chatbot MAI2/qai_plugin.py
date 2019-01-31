@@ -241,14 +241,15 @@ class Plugin(object):
         fun = self.bot.action if action_ else self.bot.privmsg
         return fun(target, message, nowait=nowait)
 
-    def irc_message(self, target, message):
+    def irc_message(self, target, message, action_=False):
         """ Used via utils by some other modules """
+        fun = self.bot.action if action_ else self.bot.privmsg
         try:
-            self.bot.privmsg(target, message, nowait=True)
+            fun(target, message, nowait=True)
             return
         except AttributeError as e1:
             try:
-                self.bot.privmsg(target, message, nowait=False)
+                fun(target, message, nowait=False)
                 return
             except Exception as e2:
                 logger.warning('Failed sending IRC message! [%s] [%s]' % (str(e1), str(e2)))
