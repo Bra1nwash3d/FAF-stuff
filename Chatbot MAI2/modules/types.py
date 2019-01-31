@@ -44,8 +44,7 @@ class CommandType(enum.Enum):
     ADMINBACKUP = 'adminbackup'
     ADMINEFFECTS = 'admineffects'
     ADMINIGNORE = 'adminignore'
-    ADMINCHATCHANNELS = 'adminchatchannels'
-    ADMINGAMECHANNELS = 'admingamechannels'
+    ADMINCHANNELS = 'adminchannels'
     ADMINRESET = 'adminreset'
 
     @staticmethod

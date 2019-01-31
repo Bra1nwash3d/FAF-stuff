@@ -601,47 +601,35 @@ class Plugin(object):
 
     @command(permission='admin', public=False)
     @asyncio.coroutine
-    def adminchatchannels(self, mask, target, args):
-        """ Change list of channels where one can get points for chatting
+    def adminchannels(self, mask, target, args):
+        """ Change list of channels where one can get points for chatting; 
+            type in {chat, game}
 
-            %%adminchatchannels get
-            %%adminchatchannels add <name> [<time>]
-            %%adminchatchannels del <name>
+            %%adminchannels <type> get
+            %%adminchannels <type> add <name> [<time>]
+            %%adminchannels <type> del <name>
         """
-        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminchatchannels', mask.nick, target))
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminchannels', mask.nick, target))
         get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
-        time_ = args.get('<time>')
+        type_, time_ = args.get('<type>'), args.get('<time>')
+        funs = {'chat': {'get': self.db_root.chatbase.get_accepted_chat,
+                         'add': self.db_root.chatbase.add_accepted_chat,
+                         'del': self.db_root.chatbase.remove_accepted_chat},
+                'game': {'get': self.db_root.chatbase.get_accepted_game,
+                         'add': self.db_root.chatbase.add_accepted_game,
+                         'del': self.db_root.chatbase.remove_accepted_game}
+                }.get(type_, None)
+        if funs is None:
+            self.pm(mask, mask.nick, 'Type "%s" not found!' % type_)
+            return
         if get:
-            response = self.db_root.chatbase.get_accepted_chat()
+            response = funs.get('get')()
         if add:
             time_ = try_fun(int, None, time_)
-            response = self.db_root.chatbase.add_accepted_chat(name, duration=time_)
+            response = funs.get('add')(name, duration=time_)
         if del_:
-            response = self.db_root.chatbase.remove_accepted_chat(name)
-        self.db_root.eventbase.add_command_event(CommandType.ADMINCHATCHANNELS, by_=player_id(mask),
-                                                 target=target, args=args)
-        self.pm(mask, mask.nick, response)
-
-    @command(permission='admin', public=False)
-    @asyncio.coroutine
-    def admingamechannels(self, mask, target, args):
-        """ Change list of channels where one can play chatgames
-
-            %%admingamechannels get
-            %%admingamechannels add <name> [<time>]
-            %%admingamechannels del <name>
-        """
-        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'admingamechannels', mask.nick, target))
-        get, add, del_, name, response = args.get('get'), args.get('add'), args.get('del'), args.get('<name>'), None
-        time_ = args.get('<time>')
-        if get:
-            response = self.db_root.chatbase.get_accepted_game()
-        if add:
-            time_ = try_fun(int, None, time_)
-            response = self.db_root.chatbase.add_accepted_game(name, duration=time_)
-        if del_:
-            response = self.db_root.chatbase.remove_accepted_game(name)
-        self.db_root.eventbase.add_command_event(CommandType.ADMINGAMECHANNELS, by_=player_id(mask),
+            response = funs.get('del')(name)
+        self.db_root.eventbase.add_command_event(CommandType.ADMINCHANNELS, by_=player_id(mask),
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
@@ -682,7 +670,8 @@ class Plugin(object):
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd", "reload", "admineffects", "adminignore", "adminchatchannels", "adminreset"]
+        words = ["join", "leave", "cd", "reload", "adminbackup", "admineffects", "adminignore", "adminchatchannels",
+                 "admingamechannels", "adminreset"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)
