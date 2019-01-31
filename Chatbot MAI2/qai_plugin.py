@@ -84,7 +84,7 @@ class Plugin(object):
         try:
             self.db_root.spam_protect.print()
         except:
-            self.db_root.spam_protect = SpamProtect([MAIN_CHANNEL])
+            self.db_root.spam_protect = SpamProtect()
         self.db_root.spam_protect.migrate()
 
         try:
@@ -305,15 +305,13 @@ class Plugin(object):
             %%chatlvl [<name>]
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatlvl', mask.nick, target))
-        location = target
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
         name = args.get('<name>')
         name = mask.nick if name is None else name
-        is_spam, rem_time = self.db_root.spam_protect.is_spam(location, 'chatlvl')
-        if location == MAIN_CHANNEL and is_spam:
-            location = mask.nick
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'chatlvl')
+        location = mask.nick if is_spam else target
         self.pm(mask, location, self.db_root.chatbase.get(name, is_nick=True).get_point_message())
         self.db_root.eventbase.add_command_event(CommandType.CHATLVL, by_=player_id(mask), target=target, args=args,
                                                  spam_protect_time=rem_time)
@@ -331,9 +329,8 @@ class Plugin(object):
             return
         name = args.get('<name>')
         name = mask.nick if name is None else name
-        is_spam, rem_time = self.db_root.spam_protect.is_spam(location, 'chatmults')
-        if location == MAIN_CHANNEL and is_spam:
-            location = mask.nick
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'chatmults')
+        location = mask.nick if is_spam else target
         self.pm(mask, location, self.db_root.chatbase.get(name, is_nick=True).get_mult_message())
         self.db_root.eventbase.add_command_event(CommandType.CHATMULTS, by_=player_id(mask), target=target, args=args,
                                                  spam_protect_time=rem_time)
@@ -351,9 +348,8 @@ class Plugin(object):
             return
         name = args.get('<name>')
         name = mask.nick if name is None else name
-        is_spam, rem_time = self.db_root.spam_protect.is_spam(location, 'chateffects')
-        if location == MAIN_CHANNEL and is_spam:
-            location = mask.nick
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'chateffects')
+        location = mask.nick if is_spam else target
         msg = self.db_root.chatbase.get(name, is_nick=True).get_effects_message()
         for i, m in enumerate(msg.split('\n')):
             self.pm(mask, location, m)
@@ -602,8 +598,8 @@ class Plugin(object):
     @command(permission='admin', public=False)
     @asyncio.coroutine
     def adminchannels(self, mask, target, args):
-        """ Change list of channels where one can get points for chatting; 
-            type in {chat, game}
+        """ Change list of channels where one can get points for chatting;
+            type in {chat, game, spam}
 
             %%adminchannels <type> get
             %%adminchannels <type> add <name> [<time>]
@@ -617,7 +613,10 @@ class Plugin(object):
                          'del': self.db_root.chatbase.remove_accepted_chat},
                 'game': {'get': self.db_root.chatbase.get_accepted_game,
                          'add': self.db_root.chatbase.add_accepted_game,
-                         'del': self.db_root.chatbase.remove_accepted_game}
+                         'del': self.db_root.chatbase.remove_accepted_game},
+                'spam': {'get': self.db_root.spam_protect.get_protected_channel,
+                         'add': self.db_root.spam_protect.add_protected_channel,
+                         'del': self.db_root.spam_protect.remove_protected_channel},
                 }.get(type_, None)
         if funs is None:
             self.pm(mask, mask.nick, 'Type "%s" not found!' % type_)
@@ -670,8 +669,8 @@ class Plugin(object):
             %%hidden
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
-        words = ["join", "leave", "cd", "reload", "adminbackup", "admineffects", "adminignore", "adminchatchannels",
-                 "admingamechannels", "adminreset"]
+        words = ["join", "leave", "cd", "reload", "adminbackup", "admineffects", "adminignore", "adminchannels",
+                 "adminreset"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)

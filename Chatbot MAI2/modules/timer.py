@@ -1,5 +1,6 @@
 import time
 import persistent.dict
+import persistent.list
 import transaction
 from modules.utils import get_logger, get_lock
 
@@ -7,12 +8,12 @@ logger = get_logger('spam_protect')
 lock = get_lock('spam_protect')
 
 
-class SpamProtect:
-    def __init__(self, protected_channels):
+class SpamProtect(persistent.Persistent):
+    def __init__(self):
         """ prefer stored protected_channels and new timer/default_cd """
-        self.channels = persistent.dict.PersistentDict()  # store of when commands were used last
-        self.timer = persistent.dict.PersistentDict()  # store of command dependent cooldowns
-        self.protected_channels = protected_channels if protected_channels is not None else []
+        self.channels = persistent.dict.PersistentDict()            # store of when commands were used last
+        self.timer = persistent.dict.PersistentDict()               # store of command dependent cooldowns
+        self.protected_channels = persistent.list.PersistentList()  # which channels are protected
 
         # vars
         self.default_cd = 60
@@ -33,13 +34,12 @@ class SpamProtect:
             # self.x = self.__dict__.get('x', 'oh a new self.x!')
             pass
 
-    def update_vars(self, default_cd=None, protected_channels=None, **_):
+    def update_vars(self, default_cd=None, **_):
         # function to set misc vars
         with lock:
             self.default_cd = default_cd if default_cd is not None else self.default_cd
-            self.protected_channels = protected_channels if protected_channels is not None else self.protected_channels
             self.save()
-            logger.info('SpamProtect, updating defaults %s / %s' % (default_cd, protected_channels))
+            logger.info('SpamProtect, updating defaultcd %s' % default_cd)
 
     def update_timer(self, timer=None):
         with lock:
@@ -87,3 +87,21 @@ class SpamProtect:
             if update and rem_time <= 0:
                 self.set_now(channel, cmd)
             return rem_time > 0, rem_time
+
+    def get_protected_channel(self) -> str:
+        return 'List of accepted channels: %s' % ', '.join(self.protected_channels)
+
+    def add_protected_channel(self, channel: str, **_) -> str:
+        # not using time currently
+        if channel in self.protected_channels:
+            return "%s is already a protected channel" % channel
+        self.protected_channels.append(channel)
+        self.save()
+        return "%s added to protected channels" % channel
+
+    def remove_protected_channel(self, channel: str) -> str:
+        if channel not in self.protected_channels:
+            return "%s is not a protected channel" % channel
+        self.protected_channels.remove(channel)
+        self.save()
+        return "%s removed from protected channels" % channel
