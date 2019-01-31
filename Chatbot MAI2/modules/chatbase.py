@@ -228,7 +228,7 @@ class Chatbase(persistent.Persistent):
         with lock:
             items = []
             for id_, d in self.ignored_players.items():
-                part = '{n}' if d is None else '{n} ({d})'
+                part, d = ('{n}', 0) if d is None else ('{n} ({d})', d)
                 items.append(part.format(**{'n': self.get(id_).nick, 'd': time_to_str(d - time.time())}))
             return 'Ignored players: %s' % ', '.join(items)
 
