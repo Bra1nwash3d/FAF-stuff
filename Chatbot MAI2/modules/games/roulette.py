@@ -24,6 +24,12 @@ class RouletteGame(Game):
                       % time_to_str(duration))
         logger.debug('Created new RouletteGame')
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        with lock:
+            # self.x = self.__dict__.get('x', 'oh a new self.x!')
+            pass
+
     def join(self, id_: str, name: str, points: int):
         with lock:
             logger.debug('RouletteGame join: %s, %s/%s, %s' % (self.channel, id_, name, points))

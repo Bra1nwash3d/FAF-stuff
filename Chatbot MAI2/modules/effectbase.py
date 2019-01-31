@@ -33,6 +33,12 @@ class EffectBase(persistent.Persistent):
             self.save()
             logger.info('Reset EffectBase')
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        with lock:
+            # self.x = self.__dict__.get('x', 'oh a new self.x!')
+            pass
+
     def __next_id(self):
         with lock:
             id_ = self.next_id

@@ -28,6 +28,12 @@ class CallbackQueue(persistent.Persistent):
             self.save()
             logger.info('Reset CallbackQueue')
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        with lock:
+            # self.x = self.__dict__.get('x', 'oh a new self.x!')
+            pass
+
     def print(self):
         with lock:
             logger.info('Callbackqueue has %i queued items' % len(self.items))

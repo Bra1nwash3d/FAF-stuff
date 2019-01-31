@@ -48,6 +48,14 @@ class Chatbase(persistent.Persistent):
             self.save()
             logger.info('Reset Chatbase')
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        with lock:
+            # self.x = self.__dict__.get('x', 'oh a new self.x!')
+            # migrate all chatentities
+            for ce in self.entities.itervalues():
+                ce.migrate()
+
     def update_vars(self, points_cost_on_kick=None, points_cost_on_ban=None, **_):
         with lock:
             # function to set misc vars

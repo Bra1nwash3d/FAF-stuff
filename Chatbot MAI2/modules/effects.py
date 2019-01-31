@@ -31,6 +31,11 @@ class PointsEffect(persistent.Persistent):
             self.mults.update(mults)
         self.save()
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        # self.x = self.__dict__.get('x', 'oh a new self.x!')
+        pass
+
     def add_add(self, type_: PointType, add: float):
         self.adds[type_] = self.adds.get(type_, 0) + add
         self.save()

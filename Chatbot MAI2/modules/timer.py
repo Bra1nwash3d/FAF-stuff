@@ -27,6 +27,12 @@ class SpamProtect:
             self.save()
             logger.info('Reset SpamProtect')
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        with lock:
+            # self.x = self.__dict__.get('x', 'oh a new self.x!')
+            pass
+
     def update_vars(self, default_cd=None, protected_channels=None, **_):
         # function to set misc vars
         with lock:

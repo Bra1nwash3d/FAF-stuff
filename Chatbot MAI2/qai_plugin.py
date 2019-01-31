@@ -68,6 +68,7 @@ class Plugin(object):
             self.db_root.queue.print()
         except:
             self.db_root.queue = CallbackQueue()
+        self.db_root.queue.migrate()
         self.queue_thread = CallbackQueueWorkerThread(self.db_root.queue)
         self.queue_thread.start()
 
@@ -76,16 +77,19 @@ class Plugin(object):
             self.db_root.effectbase.print()
         except:
             self.db_root.effectbase = EffectBase(self.db_root.queue)
+        self.db_root.effectbase.migrate()
 
         try:
             self.db_root.spam_protect.print()
         except:
             self.db_root.spam_protect = SpamProtect([MAIN_CHANNEL])
+        self.db_root.spam_protect.migrate()
 
         try:
             self.db_root.eventbase.print()
         except:
             self.db_root.eventbase = eventbase.Eventbase()
+        self.db_root.eventbase.migrate()
 
         chatbase_args = [self.db_root.eventbase, self.db_root.spam_protect, self.db_root.queue, self.db_root.effectbase]
         try:
@@ -93,6 +97,7 @@ class Plugin(object):
             self.db_root.chatbase.print()
         except:
             self.db_root.chatbase = chatbase.Chatbase(*chatbase_args)
+        self.db_root.chatbase.migrate()
 
         gamebase_args = [self.db_root.eventbase, self.db_root.queue, self.db_root.chatbase,
                          self.db_root.effectbase, self.db_root.spam_protect]
@@ -101,6 +106,7 @@ class Plugin(object):
             self.db_root.gamebase.print()
         except:
             self.db_root.gamebase = Gamebase(*gamebase_args)
+        self.db_root.gamebase.migrate()
 
     @classmethod
     def reload(cls, old):

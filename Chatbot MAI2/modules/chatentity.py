@@ -24,6 +24,13 @@ class ChatEntity(persistent.Persistent):
         self.effects = persistent.list.PersistentList()
         # TODO effects, add, on_change, queue, ...
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        # self.x = self.__dict__.get('x', 'oh a new self.x!')
+        # migrate existing effects
+        for effect in self.effects:
+            effect.migrate()
+
     def save(self):
         self._p_changed = True
         transaction.commit()

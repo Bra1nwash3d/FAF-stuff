@@ -27,6 +27,10 @@ class Game(persistent.Persistent):
         self.on_end_callback = on_end_callback
         self.is_running = True
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        raise NotImplementedError()
+
     def join(self, id_: str, name: str, points: int):
         self.id_to_name[id_] = name
         return self._reserve_points(id_, name, points)

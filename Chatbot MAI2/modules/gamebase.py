@@ -47,6 +47,17 @@ class Gamebase(persistent.Persistent):
             self.save()
             logger.info('Reset Gamebase')
 
+    def migrate(self):
+        """ to migrate the db when new class elements are added - call self.save() if you do """
+        with lock:
+            # self.x = self.__dict__.get('x', 'oh a new self.x!')
+            # migrate all games
+            for game in self.current_games.values():
+                game.migrate()
+            for channel in self.prev_games.values():
+                for game in channel.values():
+                    game.migrate()
+
     def update_vars(self, game_cooldowns=None, default_game_cooldown=None, default_roulette_duration=None, **_):
         with lock:
             # function to set misc vars
