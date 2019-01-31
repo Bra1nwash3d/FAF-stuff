@@ -41,6 +41,7 @@ class CommandType(enum.Enum):
     CHATEVENTS = 'chatevents'
     CHATTIP = 'chattip'
     CHATROULETTE = 'chatroulette'
+    ADMINBACKUP = 'adminbackup'
     ADMINEFFECTS = 'admineffects'
     ADMINIGNORE = 'adminignore'
     ADMINCHATCHANNELS = 'adminchatchannels'

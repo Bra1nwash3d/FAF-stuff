@@ -6,6 +6,8 @@ from irc3.plugins.command import command
 from irc3.utils import IrcString
 import time
 import threading
+import os
+import shutil
 import ZODB
 import ZODB.FileStorage
 
@@ -536,6 +538,30 @@ class Plugin(object):
             self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
         self.db_root.eventbase.add_command_event(CommandType.RELOAD, by_=player_id(mask), target=target, args=args)
 
+    def backup(self, name='backup', keep=3):
+        data_path = '/'.join(self.bot.config.get('storage2', './data/').split('/')[:-1])
+        backup_dir = '%s%s/' % (self.bot.config.get('backups_path', './backups/'), name)
+        backup_path = '%s%s/' % (backup_dir, str(int(time.time())))
+        logger.info('Backup from "%s" to "%s"' % (data_path, backup_path))
+        self.__db_save()
+        shutil.copytree(data_path, backup_path, ignore=lambda _, names: [n for n in names if n.endswith('.lock')])
+        all_relevant_backups = [d[0] for d in os.walk(backup_dir)]
+        for i in range(1, len(all_relevant_backups) - keep):
+            shutil.rmtree(all_relevant_backups[i])
+
+    @command(show_in_help_list=False)
+    @nickserv_identified
+    async def adminbackup(self, mask, target, args):
+        """ Back up the db
+
+            %%adminbackup
+        """
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminbackup', mask.nick, target))
+        self.backup('manually', keep=5)
+        self.pm(mask, target, 'Backed up the db')
+        self.db_root.eventbase.add_command_event(CommandType.ADMINBACKUP, by_=player_id(mask),
+                                                 target=target, args=args)
+
     @command(permission='admin', public=False)
     @nickserv_identified
     async def admineffects(self, mask, target, args):
@@ -620,7 +646,7 @@ class Plugin(object):
         self.pm(mask, mask.nick, response)
 
     @command(permission='admin', public=False)
-    # @nickserv_identified
+    @nickserv_identified
     async def adminreset(self, mask, target, args):
         """ Abuse admin powers to reset everything
 
@@ -631,14 +657,15 @@ class Plugin(object):
         all_, games = args.get('all', False), args.get('games', False)
         self.db_root.eventbase.add_command_event(CommandType.ADMINRESET, by_=player_id(mask),
                                                  target=target, args=args)
-        self.reset(all_=all_, games=games)
+        self.reset(name='manually_reset', all_=all_, games=games)
         self.pm(mask, mask.nick, "RESET STUFF")
 
-    def reset(self, all_=False, games=False):
+    def reset(self, name='reset', all_=False, games=False):
         epoch = self.__db_get(['chatlvlmisc', 'epoch'])
         # maybe, just maybe, the database should be moved copied to keep old epochs accessible TODO
         self.__db_add(['chatlvlmisc'], 'epoch', epoch+1, overwrite_if_exists=True, save=True)
         logger.info('-'*100)
+        self.backup(name)
         if all_:
             self.db_root.queue.reset()
             self.db_root.eventbase.reset()
