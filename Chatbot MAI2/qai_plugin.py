@@ -462,16 +462,17 @@ class Plugin(object):
             return
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatroulette', mask.nick, target))
         points = args.get('<points/all>')
+        id_ = player_id(mask)
         if points == 'all':
-            points = self.db_root.chatbase.get(player_id(mask)).get_points()
+            points = self.db_root.chatbase.get(id_).get_points()
         else:
             points = try_fun(int, None, points)
         if points is None:
             self.pm(mask, target, 'Failed understanding your point amount!')
         try:
-            game = self.db_root.gamebase.get_roulette_game(ChatType.IRC, target)
+            game = self.db_root.gamebase.get_roulette_game(ChatType.IRC, target, id_)
             if game is not None:
-                game.join(mask.nick, points)
+                game.join(id_, mask.nick, points)
         except Exception as e:
             self.pm(mask, target, str(e))
         self.db_root.eventbase.add_command_event(CommandType.CHATROULETTE, by_=player_id(mask),

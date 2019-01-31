@@ -87,7 +87,7 @@ class Gamebase(persistent.Persistent):
                 return game
             raise ValueError('Another game is already running in channel %s!' % channel)
 
-    def get_roulette_game(self, chat_type: ChatType, channel: str) -> RouletteGame:
+    def get_roulette_game(self, chat_type: ChatType, channel: str, requested_by: str) -> RouletteGame:
         # TODO add events
         with lock:
             game = self.__get_game(channel, GameType.ROULETTE)
@@ -96,8 +96,8 @@ class Gamebase(persistent.Persistent):
                 is_spam, rem_time = self.spam_protect.is_spam(channel, GameType.ROULETTE.value)
                 if is_spam:
                     raise ValueError('Roulette is on cooldown, please wait %s.' % time_to_str(rem_time))
-                game = RouletteGame(chat_type, channel, self.queue, self.remove_game, self.chatbase,
-                                    self.default_roulette_duration)
+                game = RouletteGame(chat_type, channel, requested_by, self.queue, self.remove_game, self.chatbase,
+                                    self.eventbase, self.default_roulette_duration)
                 self.current_games[channel] = game
             return game
 

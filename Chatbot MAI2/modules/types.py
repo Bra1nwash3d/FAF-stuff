@@ -66,6 +66,7 @@ class EventType(enum.Enum):
     MODE = 'mode'
     COMMAND = 'command'
     CHATTIP = 'chattip'
+    ROULETTEGAME = 'roulette'
 
     @staticmethod
     def from_str(str_):

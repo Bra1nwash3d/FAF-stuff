@@ -50,6 +50,11 @@ class Eventbase(persistent.Persistent):
             event = ChatTipEvent(by, target, points_desired, points_tipped)
             self.add_event(event)
 
+    def add_game_roulette_event(self, by: str, target: str, players: dict, winners: list):
+        with lock:
+            event = ChatRouletteEvent(by, target, players.copy(), winners.copy())
+            self.add_event(event)
+
     def add_on_kick_event(self, by: str, target: str, channel: str, msg: str, points: int):
         with lock:
             event = OnKickEvent(by, target, channel, msg, points)

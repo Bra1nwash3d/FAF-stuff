@@ -1,7 +1,7 @@
 import persistent
 import time
 from modules.utils import get_logger
-from modules.types import EventType, CommandType
+from modules.types import EventType, CommandType, GameType
 
 logger = get_logger('event')
 
@@ -9,7 +9,7 @@ logger = get_logger('event')
 class Event(persistent.Persistent):
     """ don't make events of this class, use the subclasses """
 
-    def __init__(self, type_, by):
+    def __init__(self, type_: EventType, by: str):
         super(Event, self).__init__()
         self.id = None  # set a bit later
         self.type = type_
@@ -30,7 +30,7 @@ class Event(persistent.Persistent):
 
 
 class CommandEvent(Event):
-    def __init__(self, command_type: CommandType, by, target, args, spam_protect_time=None):
+    def __init__(self, command_type: CommandType, by: str, target: str, args: dict, spam_protect_time=None):
         super(CommandEvent, self).__init__(EventType.COMMAND, by)
         self.command_type = command_type
         self.target = target
@@ -53,7 +53,7 @@ class CommandEvent(Event):
 
 
 class ChatTipEvent(Event):
-    def __init__(self, by, target, p_desired, p_tipped):
+    def __init__(self, by: str, target: str, p_desired: int, p_tipped: int):
         super(ChatTipEvent, self).__init__(EventType.CHATTIP, by)
         self.target = target
         self.p_desired = p_desired
@@ -70,8 +70,26 @@ class ChatTipEvent(Event):
         })
 
 
+class ChatRouletteEvent(Event):
+    def __init__(self, by: str, target: str, players: dict, winners: list):
+        super(ChatRouletteEvent, self).__init__(EventType.ROULETTEGAME, by)
+        self.target = target
+        self.players = players
+        self.winners = winners
+
+    def __str__(self):
+        return 'Event id:{id}, type:{type}, by:{by}, target:{target}, players:{players}, winners:{winners}'.format(**{
+            'id': self.id,
+            'type': self.type,
+            'by': self.by,
+            'target': self.target,
+            'players': self.players,
+            'winners': self.winners,
+        })
+
+
 class OnKickEvent(Event):
-    def __init__(self, by, target, channel, msg: str, points: int):
+    def __init__(self, by: str, target: str, channel: str, msg: str, points: int):
         super(OnKickEvent, self).__init__(EventType.KICK, by)
         self.target = target
         self.channel = channel
