@@ -317,32 +317,12 @@ class Plugin(object):
                                                  spam_protect_time=rem_time)
 
     @command()
-    async def chatmults(self, mask, target, args):
-        """ Display chatmults
-
-            %%chatmults [<name>]
-        """
-        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatlvl', mask.nick, target))
-        location = target
-        # TODO remove when public
-        if mask.nick not in ADMINS:
-            return
-        name = args.get('<name>')
-        name = mask.nick if name is None else name
-        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'chatmults')
-        location = mask.nick if is_spam else target
-        self.pm(mask, location, self.db_root.chatbase.get(name, is_nick=True).get_mult_message())
-        self.db_root.eventbase.add_command_event(CommandType.CHATMULTS, by_=player_id(mask), target=target, args=args,
-                                                 spam_protect_time=rem_time)
-
-    @command()
     async def chateffects(self, mask, target, args):
-        """ Display chatmults
+        """ Display effects and mults
 
             %%chateffects [<name>]
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatlvl', mask.nick, target))
-        location = target
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
@@ -353,7 +333,7 @@ class Plugin(object):
         msg = self.db_root.chatbase.get(name, is_nick=True).get_effects_message()
         for i, m in enumerate(msg.split('\n')):
             self.pm(mask, location, m)
-        self.db_root.eventbase.add_command_event(CommandType.CHATMULTS, by_=player_id(mask), target=target, args=args,
+        self.db_root.eventbase.add_command_event(CommandType.CHATEFFECTS, by_=player_id(mask), target=target, args=args,
                                                  spam_protect_time=rem_time)
 
     @command()

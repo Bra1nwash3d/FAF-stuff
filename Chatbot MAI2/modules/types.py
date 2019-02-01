@@ -35,7 +35,6 @@ class CommandType(enum.Enum):
     RELOAD = 'reload'
     CD = 'cd'
     CHATLVL = 'chatlvl'
-    CHATMULTS = 'chatmults'
     CHATEFFECTS = 'chateffects'
     CHATLADDER = 'chatladder'
     CHATEVENTS = 'chatevents'

@@ -55,10 +55,11 @@ class ChatEntity(persistent.Persistent):
             for k, v in e.get_mults().items():
                 self.mults[k] = self.mults.get(k, 1) * v
         self.save()
-        msg = 'A chat-effects {state}! [{effect}], changing your multipliers to [{mults}]!'.format(**{
+        mults = self.__get_mults_strs()
+        msg = 'A chat-effect {state}! [{effect}], changing your multipliers to {mults}!'.format(**{
             'state': 'begins' if begins else 'ended',
             'effect': effect.to_str(),
-            'mults': ', '.join(self.__get_mults_strs()),
+            'mults': '[%s]' % ''.join(mults) if len(mults) > 1 else 'default',
         })
         gmf(ChatType.IRC)(self.nick, msg)
         logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
@@ -117,7 +118,7 @@ class ChatEntity(persistent.Persistent):
         msg_parts = []
         for k, v in self.mults.items():
             if v != 1:
-                msg_parts.append('%s: %.2f' % (PointType.as_str(k), v))
+                msg_parts.append('%s by x%.2f' % (PointType.as_str(k), v))
         return msg_parts
 
     def get_mult_message(self) -> str:
@@ -131,7 +132,10 @@ class ChatEntity(persistent.Persistent):
         })
 
     def get_effects_message(self) -> str:
-        msg = ["%s has %i effects running (not all may stack)" % (self.nick, len(self.effects))]
+        mults_msg_parts, mults_msg = self.__get_mults_strs(), ''
+        if len(mults_msg_parts) > 0:
+            mults_msg = ', changing point multipliers to: [%s]' % ', '.join(mults_msg_parts)
+        msg = ["%s has %i effects running (not all may stack)%s" % (self.nick, len(self.effects), mults_msg)]
         for e in self.effects:
             msg.append(' - %s' % e.to_str())
         return '\n'.join(msg)
