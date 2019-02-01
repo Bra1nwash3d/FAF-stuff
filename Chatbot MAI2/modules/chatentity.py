@@ -59,7 +59,7 @@ class ChatEntity(persistent.Persistent):
         msg = 'A chat-effect {state}! [{effect}], changing your multipliers to {mults}!'.format(**{
             'state': 'begins' if begins else 'ended',
             'effect': effect.to_str(),
-            'mults': '[%s]' % ''.join(mults) if len(mults) > 1 else 'default',
+            'mults': '[%s]' % ', '.join(mults) if len(mults) > 0 else 'default',
         })
         gmf(ChatType.IRC)(self.nick, msg)
         logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
