@@ -7,6 +7,7 @@ from modules.utils import get_logger, points_to_level
 from modules.utils import get_msg_fun as gmf
 from modules.types import PointType, ChatType
 from modules.effects import PointsEffect
+from modules.items.item import UsableItem
 
 logger = get_logger('chatentity')
 
@@ -19,7 +20,7 @@ class ChatEntity(persistent.Persistent):
         self.nick = '_unknown_'
         self.points = persistent.dict.PersistentDict()
         self.point_sum = 0
-        self.items = persistent.dict.PersistentDict()
+        self.useable_items = persistent.dict.PersistentDict()
         self.points_mults = persistent.dict.PersistentDict()
         self.points_effects = persistent.list.PersistentList()
         self.join_message = None
@@ -34,6 +35,30 @@ class ChatEntity(persistent.Persistent):
     def save(self):
         self._p_changed = True
         transaction.commit()
+
+    def add_usable_item(self, item: UsableItem):
+        item.merge(self.useable_items.pop(item.item_id) if item.item_id in self.useable_items else None)
+        self.useable_items[item.item_id] = item
+        logger.debug('added usable item to %s/%s, item: %s' % (self.id, self.nick, item.item_id))
+        self.save()
+
+    def get_usable_item(self, item_id: str, is_name=False):
+        """ return the item of item_id """
+        if not is_name:
+            return self.useable_items.get(item_id)
+        for item in self.useable_items.values():
+            if item.has_id(item_id, is_name=is_name):
+                return item
+        return None
+
+    def update_usable_items(self):
+        remove_keys = []
+        for k, item in self.useable_items.items():
+            if item.uses <= 0:
+                remove_keys.append(k)
+        for k in remove_keys:
+            self.useable_items.pop(k)
+        self.save()
 
     def add_points_effect(self, effect: PointsEffect):
         if effect is None:
@@ -64,17 +89,6 @@ class ChatEntity(persistent.Persistent):
         gmf(ChatType.IRC)(self.nick, msg)
         logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.points_effects]))
         logger.debug('ChatEntity id:%s has mults: %s' % (self.id, self.points_mults))
-
-    def add_item(self, item_id: str, quantity: int=1):
-        self.items[item_id] = self.items.get(item_id, 0) + quantity
-        self.save()
-
-    def take_item(self, item_id: str, quantity: int=1):
-        has_items = self.items.get(item_id, 0)
-        self.items[item_id] = has_items - quantity
-        if quantity >= has_items:
-            self.items.pop(item_id)
-        pass
 
     def update_points(self, delta, nick=None, type_=PointType.CHAT, partial=False, mult_enabled=True) -> (int, bool):
         """
@@ -149,6 +163,18 @@ class ChatEntity(persistent.Persistent):
         msg = ["%s has %i effects running (not all may stack)%s" % (self.nick, len(self.points_effects), mults_msg)]
         for e in self.points_effects:
             msg.append(' - %s' % e.to_str())
+        return '\n'.join(msg)
+
+    def get_usable_items_message(self, show_hidden=False) -> str:
+        items = self.useable_items
+        if not show_hidden:
+            items, _ = UsableItem.split_visible_hidden(list(self.useable_items.values()))
+        num = len(items)
+        if num == 0:
+            return '%s has no items!' % self.nick
+        msg = ['%s has %d items:' % (self.nick, num)]
+        for item in items:
+            msg.append(' - %s' % item.to_str())
         return '\n'.join(msg)
 
     def get_mult(self, type_=PointType.CHAT) -> int:

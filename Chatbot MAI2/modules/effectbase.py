@@ -90,7 +90,7 @@ class EffectBase(persistent.Persistent):
 
     def test_effect(self):
         with lock:
-            return PointsEffect(self.__next_id(), name='testeffect', queue=self.queue, duration=30, mults={
+            return PointsEffect(self.__next_id(), name='test1', queue=self.queue, duration=30, mults={
                 PointType.CHAT: 2.0,
             })
 

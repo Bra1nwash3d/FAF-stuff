@@ -16,6 +16,7 @@ from modules import chatbase, eventbase
 from modules.timer import SpamProtect
 from modules.effectbase import EffectBase
 from modules.gamebase import Gamebase
+from modules.itembase import ItemBase
 from modules.callbackqueue import CallbackQueue, CallbackQueueWorkerThread
 from modules.types import *
 from modules.utils import get_logger, level_to_points, try_fun, set_msg_fun
@@ -82,6 +83,14 @@ class Plugin(object):
             self.db_root.effectbase = EffectBase(self.db_root.queue)
         self.db_root.effectbase.migrate()
 
+        itembase_args = [self.db_root.queue, self.db_root.effectbase]
+        try:
+            self.db_root.itembase.set(*itembase_args)
+            self.db_root.itembase.print()
+        except:
+            self.db_root.itembase = ItemBase(*itembase_args)
+        self.db_root.itembase.migrate()
+
         try:
             self.db_root.spam_protect.print()
         except:
@@ -94,7 +103,8 @@ class Plugin(object):
             self.db_root.eventbase = eventbase.Eventbase()
         self.db_root.eventbase.migrate()
 
-        chatbase_args = [self.db_root.eventbase, self.db_root.spam_protect, self.db_root.queue, self.db_root.effectbase]
+        chatbase_args = [self.db_root.eventbase, self.db_root.spam_protect, self.db_root.queue, self.db_root.effectbase,
+                         self.db_root.itembase]
         try:
             self.db_root.chatbase.set(*chatbase_args)
             self.db_root.chatbase.print()
@@ -225,6 +235,7 @@ class Plugin(object):
 
         # update stuff
         self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
+        self.db_root.itembase.update_items_list(self.bot.config['items_file'])
         self.db_root.spam_protect.update_timer(self.__db_get(['timers']))
         vars_ = self.__db_get(['vars'])
         self.db_root.chatbase.update_vars(**vars_)
@@ -376,6 +387,48 @@ class Plugin(object):
                                                  spam_protect_time=rem_time)
 
     @command()
+    async def chatitems(self, mask, target, args):
+        """ Display items of user
+
+            %%chatitems [<name>]
+        """
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatitems', mask.nick, target))
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        name = args.get('<name>')
+        name = mask.nick if name is None else name
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'chatitems')
+        location = mask.nick if is_spam else target
+        pid = player_id(mask)
+        msg = self.db_root.chatbase.get(name, is_nick=True).get_usable_items_message()
+        for i, m in enumerate(msg.split('\n')):
+            self.pm(mask, location, m)
+        self.db_root.eventbase.add_command_event(CommandType.CHATITEMS, by_=pid, target=target, args=args,
+                                                 spam_protect_time=rem_time)
+
+    @command()
+    async def useitem(self, mask, target, args):
+        """ Display items of user
+
+            %%useitem <item_name> [<user_name>]
+        """
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatitems', mask.nick, target))
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        item_name, user_name = args.get('<item_name>'), args.get('<user_name>')
+        user_name = mask.nick if user_name is None else user_name
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'useitem')
+        location = mask.nick if is_spam else target
+        pid = player_id(mask)
+        msg = self.db_root.chatbase.use_item(item_name, pid, user_name, is_item_name=True, is_target_nick=True)
+        for i, m in enumerate(msg.split('\n')):
+            self.pm(mask, location, m)
+        self.db_root.eventbase.add_command_event(CommandType.USEITEM, by_=pid, target=target, args=args,
+                                                 spam_protect_time=rem_time)
+
+    @command()
     async def chatladder(self, mask, target, args):
         """ The names of the top ladder warriors
 
@@ -488,8 +541,8 @@ class Plugin(object):
         name = args.get('<name>')
         name = mask.nick if name is None else name
         id_ = self.db_root.chatbase.get_id(name)
-        self.db_root.chatbase.apply_test_effect(id_)
-        self.pm(mask, target, 'Adding test effect to %s:%s' % (name, id_))
+        self.db_root.chatbase.add_test_item(id_)
+        self.pm(mask, target, 'Adding test item to %s:%s' % (name, id_))
 
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified
@@ -526,6 +579,7 @@ class Plugin(object):
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'reload', mask.nick, target))
         if args.get('effects'):
             self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
+            self.db_root.itembase.update_items_list(self.bot.config['items_file'])
         self.db_root.eventbase.add_command_event(CommandType.RELOAD, by_=player_id(mask), target=target, args=args)
 
     def backup(self, name='backup', keep=3):
@@ -564,6 +618,20 @@ class Plugin(object):
         msg = self.db_root.chatbase.apply_effect(name, effect_id, is_player_nick=True, is_effect_name=False)
         self.pm(mask, mask.nick, msg)
         self.db_root.eventbase.add_command_event(CommandType.ADMINEFFECTS, by_=player_id(mask),
+                                                 target=target, args=args)
+
+    @command(permission='admin', public=False)
+    @nickserv_identified
+    async def adminitems(self, mask, target, args):
+        """ Abuse admin powers to fiddle with items
+
+            %%adminitems add <name> <itemid>
+        """
+        logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminitems', mask.nick, target))
+        name, item_id = args.get('<name>'), args.get('<itemid>')
+        msg = self.db_root.chatbase.add_item(name, item_id, is_player_nick=True, is_item_name=False)
+        self.pm(mask, mask.nick, msg)
+        self.db_root.eventbase.add_command_event(CommandType.ADMINITEMS, by_=player_id(mask),
                                                  target=target, args=args)
 
     @command(permission='admin', public=False)
@@ -632,25 +700,28 @@ class Plugin(object):
         """ Abuse admin powers to reset everything
 
             %%adminreset all
+            %%adminreset chat
             %%adminreset games
             %%adminreset events
         """
         logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminreset', mask.nick, target))
         all_, games, events = args.get('all', False), args.get('games', False), args.get('events', False)
+        chat = args.get('chat', False)
         self.db_root.eventbase.add_command_event(CommandType.ADMINRESET, by_=player_id(mask),
                                                  target=target, args=args)
-        self.reset(name='manually_reset', all_=all_, games=games, events=events)
+        self.reset(name='manually_reset', all_=all_, games=games, events=events, chat=chat)
         self.pm(mask, mask.nick, "RESET STUFF")
 
-    def reset(self, name='reset', all_=False, games=False, events=False):
+    def reset(self, name='reset', all_=False, games=False, events=False, chat=False):
         epoch = self.__db_get(['chatlvlmisc', 'epoch'])
         self.__db_add(['chatlvlmisc'], 'epoch', epoch+1, overwrite_if_exists=True, save=True)
         logger.info('-'*100)
         self.backup(name)
         if all_:
             self.db_root.queue.reset()
-            self.db_root.chatbase.reset()
             self.db_root.spam_protect.reset()
+        if all_ or chat:
+            self.db_root.chatbase.reset()
         if all_ or events:
             self.db_root.eventbase.reset()
         if all_ or games:
