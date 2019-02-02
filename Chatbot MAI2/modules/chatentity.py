@@ -20,41 +20,40 @@ class ChatEntity(persistent.Persistent):
         self.points = persistent.dict.PersistentDict()
         self.point_sum = 0
         self.items = persistent.dict.PersistentDict()
-        self.mults = persistent.dict.PersistentDict()
-        self.effects = persistent.list.PersistentList()
+        self.points_mults = persistent.dict.PersistentDict()
+        self.points_effects = persistent.list.PersistentList()
         self.join_message = None
-        # TODO effects, add, on_change, queue, ...
 
     def migrate(self):
         """ to migrate the db when new class elements are added - call self.save() if you do """
         # self.x = self.__dict__.get('x', 'oh a new self.x!')
         # migrate existing effects
-        for effect in self.effects:
+        for effect in self.points_effects:
             effect.migrate()
 
     def save(self):
         self._p_changed = True
         transaction.commit()
 
-    def add_effect(self, effect: PointsEffect):
+    def add_points_effect(self, effect: PointsEffect):
         if effect is None:
             logger.warn('Chatentity id:%s, nick:%s, tried applying None effect' % (self.id, self.nick))
             return
-        self.effects.append(effect)
-        effect.begin(self.update_effects, effect, begins=False)
-        logger.debug('ChatEntity id:%s adding new effect, has %d' % (self.id, len(self.effects)))
-        self.update_effects(effect, begins=True)
+        self.points_effects.append(effect)
+        effect.begin(self.update_points_effects, effect, begins=False)
+        logger.debug('ChatEntity id:%s adding new effect, has %d' % (self.id, len(self.points_effects)))
+        self.update_points_effects(effect, begins=True)
 
-    def update_effects(self, effect: PointsEffect, begins=True):
+    def update_points_effects(self, effect: PointsEffect, begins=True):
         """ updates effects list and multipliers """
-        self.mults.clear()
-        self.effects, to_apply = EffectBase.get_updated_effects(self.effects)
+        self.points_mults.clear()
+        self.points_effects, to_apply = EffectBase.get_updated_effects(self.points_effects)
         for e in to_apply:
             for k, v in e.get_adds().items():
-                self.mults[k] = self.mults.get(k, 1) + v
+                self.points_mults[k] = self.points_mults.get(k, 1) + v
         for e in to_apply:
             for k, v in e.get_mults().items():
-                self.mults[k] = self.mults.get(k, 1) * v
+                self.points_mults[k] = self.points_mults.get(k, 1) * v
         self.save()
         mults = self.__get_mults_strs()
         msg = 'A chat-effect {state}! [{effect}], changing your multipliers to {mults}!'.format(**{
@@ -63,8 +62,19 @@ class ChatEntity(persistent.Persistent):
             'mults': '[%s]' % ', '.join(mults) if len(mults) > 0 else 'default',
         })
         gmf(ChatType.IRC)(self.nick, msg)
-        logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.effects]))
-        logger.debug('ChatEntity id:%s has mults: %s' % (self.id, self.mults))
+        logger.debug('ChatEntity id:%s updating effects: %s' % (self.id, [str(e) for e in self.points_effects]))
+        logger.debug('ChatEntity id:%s has mults: %s' % (self.id, self.points_mults))
+
+    def add_item(self, item_id: str, quantity: int=1):
+        self.items[item_id] = self.items.get(item_id, 0) + quantity
+        self.save()
+
+    def take_item(self, item_id: str, quantity: int=1):
+        has_items = self.items.get(item_id, 0)
+        self.items[item_id] = has_items - quantity
+        if quantity >= has_items:
+            self.items.pop(item_id)
+        pass
 
     def update_points(self, delta, nick=None, type_=PointType.CHAT, partial=False, mult_enabled=True) -> (int, bool):
         """
@@ -117,7 +127,7 @@ class ChatEntity(persistent.Persistent):
 
     def __get_mults_strs(self) -> list:
         msg_parts = []
-        for k, v in self.mults.items():
+        for k, v in self.points_mults.items():
             if v != 1:
                 msg_parts.append('%s by x%.2f' % (PointType.as_str(k), v))
         return msg_parts
@@ -128,7 +138,7 @@ class ChatEntity(persistent.Persistent):
             msg = ', changing point multipliers to: [%s]' % ', '.join(msg_parts)
         return "{nick} has {n} effects running{mults}".format(**{
             'nick': self.nick,
-            'n': len(self.effects),
+            'n': len(self.points_effects),
             'mults': msg,
         })
 
@@ -136,13 +146,13 @@ class ChatEntity(persistent.Persistent):
         mults_msg_parts, mults_msg = self.__get_mults_strs(), ''
         if len(mults_msg_parts) > 0:
             mults_msg = ', changing point multipliers to: [%s]' % ', '.join(mults_msg_parts)
-        msg = ["%s has %i effects running (not all may stack)%s" % (self.nick, len(self.effects), mults_msg)]
-        for e in self.effects:
+        msg = ["%s has %i effects running (not all may stack)%s" % (self.nick, len(self.points_effects), mults_msg)]
+        for e in self.points_effects:
             msg.append(' - %s' % e.to_str())
         return '\n'.join(msg)
 
     def get_mult(self, type_=PointType.CHAT) -> int:
-        return self.mults.get(type_, 1)
+        return self.points_mults.get(type_, 1)
 
     @property
     def is_channel(self) -> bool:

@@ -391,8 +391,6 @@ class Plugin(object):
             return
         rev, all_ = args.get('rev'), args.get('all')
         point_type = PointType.from_str(args.get('<sum/type>'))
-        # TODO update top chat guys i guess -> prolly best to have that in chatbase
-        # global CHATLVLS, CHATLVL_TOPPLAYERS
         msg = self.db_root.chatbase.get_k_points_str(largest=not rev, incl_channels=all_, point_type=point_type)
         self.pm(mask, target, 'The ranking! %s' % msg)
         self.db_root.eventbase.add_command_event(CommandType.CHATLADDER, by_=player_id(mask), target=target, args=args)

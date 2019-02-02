@@ -220,7 +220,7 @@ class Chatbase(persistent.Persistent):
     def apply_test_effect(self, id_):
         """ Applies a test effect to a chatentity """
         with lock:
-            self.get(id_).add_effect(self.effectbase.test_effect())
+            self.get(id_).add_points_effect(self.effectbase.test_effect())
 
     def apply_effect(self, entity_id: str, effect_id: str, is_player_nick=False, is_effect_name=False) -> str:
         """ Applies an effect to a chatentity """
@@ -231,7 +231,7 @@ class Chatbase(persistent.Persistent):
                 msg = 'Failed applying the effect to %s! It was probably not found...' % entity.nick
                 logger.warn(msg)
                 return msg
-            entity.add_effect(effect)
+            entity.add_points_effect(effect)
             return '%s received effect: [%s]' % (entity.nick, effect.to_str())
 
     def add_to_ignore(self, id_: str, is_nick=False, duration=None) -> str:
