@@ -19,6 +19,7 @@ from modules.gamebase import Gamebase
 from modules.callbackqueue import CallbackQueue, CallbackQueueWorkerThread
 from modules.types import *
 from modules.utils import get_logger, level_to_points, try_fun, set_msg_fun
+from modules.markov import Markov
 
 logger = get_logger('main')
 
@@ -58,7 +59,7 @@ class Plugin(object):
         # TODO run connection.cacheMinimize() every once in a while
         self.bot = bot
         self.loop = asyncio.new_event_loop()
-        storage = ZODB.FileStorage.FileStorage(self.bot.config['storage2'])
+        storage = ZODB.FileStorage.FileStorage(self.bot.config['chat_db'])
         self.db = ZODB.DB(storage)
         self.db_con = self.db.open()
         self.db_root = self.db_con.root
@@ -109,6 +110,9 @@ class Plugin(object):
         except:
             self.db_root.gamebase = Gamebase(*gamebase_args)
         self.db_root.gamebase.migrate()
+
+        # markov chain generators
+        self.markov_aeolus = Markov(self, self.bot.config.get('markov_aeolus', './data/misc/aeolus.json'))
 
     @classmethod
     def reload(cls, old):
@@ -262,6 +266,12 @@ class Plugin(object):
             except Exception as e2:
                 logger.warning('Failed sending IRC message! [%s] [%s]' % (str(e1), str(e2)))
 
+    def is_in_channel(self, player, channel):
+        if isinstance(channel, str):
+            channel = self.bot.channels[channel]
+        if player in channel:
+            return True
+        return False
 
     @command(permission='admin', show_in_help_list=False)
     @nickserv_identified
@@ -297,6 +307,43 @@ class Plugin(object):
             self.db_root.eventbase.add_command_event(cmd_type, by_=player_id(mask), target=target,
                                                      args=args, spam_protect_time=rem_time)
         return is_spam
+
+    @command()
+    async def chain(self, mask, target, args):
+        """ Chain words both directions <3\n
+            <type> is in {f, b} to make the chain unidirectional
+
+            %%chain <word>
+            %%chain <word> f
+            %%chain <word> b
+        """
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        if self.spam_protect_wrap(target, 'chain', mask, CommandType.CHAIN, target, args):
+            return
+        word, forward, backward, sentence = args.get('<word>'), args.get('f'), args.get('b'), ''
+        if not forward and not backward:
+            forward = backward = True
+        if backward:
+            sentence += self.markov_aeolus.sentence(word, target, include_word=True, forward=False) + ' '
+        if forward:
+            sentence += self.markov_aeolus.sentence(word, target, include_word=not backward, forward=True)
+        self.bot.privmsg(target, sentence)
+
+    @command()
+    async def chainprob(self, mask, target, args):
+        """ Retrieve the probability of words in order
+
+            %%chainprob <word1> [<word2>]
+        """
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        if self.spam_protect_wrap(target, 'chainprob', mask, CommandType.CHAINPROB, target, args):
+            return
+        w1, w2 = args.get('<word1>'), args.get('<word2>')
+        self.bot.privmsg(target, self.markov_aeolus.chainprob(w1, w2))
 
     @command()
     async def chatlvl(self, mask, target, args):
@@ -366,6 +413,7 @@ class Plugin(object):
             %%chatevents <type> <nick> <time>
             %%chatevents command <type> <nick> <time>
         """
+        # TODO i guess move such logic to eventbase
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
@@ -515,7 +563,7 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.RELOAD, by_=player_id(mask), target=target, args=args)
 
     def backup(self, name='backup', keep=3):
-        data_path = '/'.join(self.bot.config.get('storage2', './data/').split('/')[:-1])
+        data_path = '/'.join(self.bot.config.get('chat_db', './data/chat/data.fs').split('/')[:-1])
         backup_dir = '%s%s/' % (self.bot.config.get('backups_path', './backups/'), name)
         backup_path = '%s%s/' % (backup_dir, str(int(time.time())))
         logger.info('Backup from "%s" to "%s"' % (data_path, backup_path))

@@ -12,15 +12,16 @@ includes =
     qai_plugin
     irc3.plugins.storage
 
-storage = json://./data/db.json
+storage = json://./data/chat/db.json
 autosave = 600
 
-storage2 = ./data/data.fs
-effects_file = ./data/effects.json
+chat_db = ./data/chat/data.fs
+markov_aeolus = ./data/misc/aeolus.json
+effects_file = ./data/misc/effects.json
+backups_path = ./data/backups/
 
 autojoins =
     aeolus
-    shadows
 
 spam_protect_time = 60
 default_command_point_requirement = 500
@@ -34,5 +35,4 @@ guard = irc3.plugins.command.mask_based_policy
 # this section is used by the guard to secure the bot's command
 # change your nickname and uncomment the line below
 Washy!*@* = all_permissions
-TouchFluffyTails!*@* = all_permissions
 * = view

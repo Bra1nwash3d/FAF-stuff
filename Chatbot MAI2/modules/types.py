@@ -34,6 +34,8 @@ class CommandType(enum.Enum):
     HIDDEN = 'hidden'
     RELOAD = 'reload'
     CD = 'cd'
+    CHAIN = 'chain'
+    CHAINPROB = 'chainprob'
     CHATLVL = 'chatlvl'
     CHATEFFECTS = 'chateffects'
     CHATLADDER = 'chatladder'

@@ -3,7 +3,7 @@ import asyncio
 import configparser
 
 config = configparser.ConfigParser()
-# Disable conversion of config data to lowercase
+# Disable conversion of config data_chat to lowercase
 config.optionxform = str
 config.read('config.ini')
 

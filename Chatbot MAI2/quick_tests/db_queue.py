@@ -9,7 +9,7 @@ import random
 
 class X:
     def __init__(self):
-        db_path = './data/data.fs'
+        db_path = './data_chat/data_chat.fs'
         os.makedirs('/'.join([p for p in db_path.split('/')[:-1]]), exist_ok=True)
         storage = ZODB.FileStorage.FileStorage(db_path)
         self.db = ZODB.DB(storage)
