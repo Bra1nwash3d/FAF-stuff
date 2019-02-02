@@ -70,12 +70,20 @@ class PointsEffect(persistent.Persistent):
             return False
         return self.rem_time() < 0
 
+    def affects_str(self) -> str:
+        affects = []
+        if len(self.adds) > 0:
+            affects.append(', '.join(['%s by +%.2f' % (PointType.as_str(k), v) for k, v in self.adds.items()]))
+        if len(self.mults) > 0:
+            affects.append(', '.join(['%s by x%.2f' % (PointType.as_str(k), v) for k, v in self.mults.items()]))
+        return ', '.join(affects)
+
     def to_str(self):
         """ used for listing effects in chat """
         rem_time = self.rem_time()
         return '{name}: affects [{effects}], {t}'.format(**{
             'name': self.name,
-            'effects': ', '.join(['%s by x%.1f' % (PointType.as_str(k), v) for k, v in self.mults.items()]),
+            'effects': self.affects_str(),
             't': 'expires in %s' % time_to_str(self.time - time.time()) if rem_time > 0 else 'expired',
         })
 

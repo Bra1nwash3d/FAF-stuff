@@ -86,7 +86,7 @@ class EffectBase(persistent.Persistent):
             pt_mult = {PointType.from_str(k): v for k, v in cfg.get('multipliers').items()}
             logger.debug('EffectBase geteffect for %s, pt_mult: %s' % (id_, str(pt_mult)))
             return PointsEffect(self.__next_id(), name=cfg.get('name'), queue=self.queue, duration=cfg.get('duration'),
-                                adds=pt_add, mults=pt_mult)
+                                adds=pt_add, mults=pt_mult, group=cfg.get('group', 'unknown'))
 
     def test_effect(self):
         with lock:
