@@ -228,7 +228,9 @@ class Chatbase(persistent.Persistent):
             effect = self.effectbase.get_effect(effect_id, is_name=is_effect_name)
             entity = self.get(entity_id, is_nick=is_player_nick)
             if effect is None:
-                return 'Failed applying the effect to %s! It was probably not found...' % entity.nick
+                msg = 'Failed applying the effect to %s! It was probably not found...' % entity.nick
+                logger.warn(msg)
+                return msg
             entity.add_effect(effect)
             return '%s received effect: [%s]' % (entity.nick, effect.to_str())
 

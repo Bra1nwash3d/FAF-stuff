@@ -73,6 +73,13 @@ class Game(persistent.Persistent):
                 self._message(id_, 'The game ended, someone else won!')
         self.save()
 
+    def _apply_effects(self, ids: [str], win=True, magnitude=1):
+        """ applies game_winX effects for magnitude X, X from 1 to 3 """
+        logger.info('Game: add effects(%d) to %s' % (magnitude, ids))
+        effect_id = 'game_%s%d' % ('win' if win else 'loss', magnitude)
+        for id_ in ids:
+            self.chatbase.apply_effect(id_, effect_id)
+
     def _message(self, id_: str, msg: str):
         """ tries to message the player/channel in its chat_type """
         name = self.id_to_name.get(id_, id_)  # may message the channel

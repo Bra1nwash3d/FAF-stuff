@@ -49,6 +49,7 @@ class RouletteGame(Game):
             winners = random.choices(list(self.players.keys()), list(self.players.values()))  # winner ids
             logger.debug('RouletteGame select winner ids %s' % winners)
             self._pay_winners(self.players, winners)
+            self._apply_effects(winners, magnitude=1)
             self.eventbase.add_game_roulette_event(self.requested_by, self.channel, self.players, winners)
             winners_str = [self.id_to_name.get(w, w) for w in winners]
             self._message(self.channel, 'The roulette game ended! Winner: %s' % ', '.join(winners_str))

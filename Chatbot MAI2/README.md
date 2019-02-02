@@ -7,6 +7,7 @@ A fork of https://github.com/Petricpwnz/NyAI, refactored, modified and (currentl
 Create the config file and modify the settings as appropriate:
 
     cp config.ini.example config.ini
+    cp ./example_data ./data -r
 
 Install Python 3.6 or higher.
 `pip install pipenv` to install pipenv.
