@@ -11,7 +11,7 @@ import shutil
 import ZODB
 import ZODB.FileStorage
 
-from decorators import nickserv_identified, channel_only
+from decorators import nickserv_identified
 from modules import chatbase, eventbase
 from modules.timer import SpamProtect
 from modules.effectbase import EffectBase
@@ -197,7 +197,7 @@ class Plugin(object):
         t0 = time.clock()
 
         # TODO get rid of global vars
-        global NICKSERVRESPONSESLOCK, IGNOREDUSERS, ADMINS
+        global NICKSERVRESPONSESLOCK, ADMINS
         NICKSERVRESPONSESLOCK = threading.Lock()
 
         # default vars for cooldowns, some costs, requirements  # TODO make command to modify
@@ -215,8 +215,6 @@ class Plugin(object):
             self.db_root.chatbase.add(n, n)
 
         # add misc other defaults/paths to db.json
-        self.__db_add([], 'ignoredusers', {}, overwrite_if_exists=False, save=False)
-        self.__db_add([], 'chatlvlwords', {}, overwrite_if_exists=False, save=False)
         self.__db_add(['chatlvlmisc'], 'epoch', 1, overwrite_if_exists=False, save=True)
 
         level_to_points(500)  # cache levels up to 500
@@ -224,7 +222,6 @@ class Plugin(object):
         # get misc vars from db.json
         ADMINS = [n.split('@')[0].replace('!', '').replace('*', '')
                   for n, v in self.bot.config['irc3.plugins.command.masks'].items() if len(v) > 5]
-        IGNOREDUSERS = self.__db_get(['ignoredusers'])
 
         # update stuff
         self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
@@ -649,7 +646,6 @@ class Plugin(object):
 
     def reset(self, name='reset', all_=False, games=False, events=False):
         epoch = self.__db_get(['chatlvlmisc', 'epoch'])
-        # maybe, just maybe, the database should be moved copied to keep old epochs accessible TODO
         self.__db_add(['chatlvlmisc'], 'epoch', epoch+1, overwrite_if_exists=True, save=True)
         logger.info('-'*100)
         self.backup(name)

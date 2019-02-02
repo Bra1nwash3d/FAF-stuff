@@ -120,7 +120,8 @@ class Eventbase(persistent.Persistent):
 
             return Eventbase.filter_events(events, is_by)
 
-    def recent_events_str(self, event_type_str: str, user_id: str, user_nick: str, time_after: int=None, command_events=False) -> str:
+    def recent_events_str(self, event_type_str: str, user_id: str, user_nick: str, time_after: int=None,
+                          command_events=False) -> str:
         events = self.filter_time(t0d=time_after)
         events = self.filter_by(user_id, events=events)
         misc_str, event_type_msg = '', ''
