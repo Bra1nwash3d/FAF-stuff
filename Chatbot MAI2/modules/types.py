@@ -78,6 +78,7 @@ class EventType(enum.Enum):
                 return e
         return {
             'tip': EventType.CHATTIP,
+            'chatroulette': EventType.ROULETTEGAME,
         }.get(str_.lower(), None)
 
 

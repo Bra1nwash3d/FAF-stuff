@@ -101,7 +101,6 @@ class Gamebase(persistent.Persistent):
         with lock:
             game = self.__get_game(channel, GameType.ROULETTE)
             if game is None:
-                self.spam_protect.print()
                 is_spam, rem_time = self.spam_protect.is_spam(channel, GameType.ROULETTE.value)
                 if is_spam:
                     raise ValueError('Roulette is on cooldown, please wait %s.' % time_to_str(rem_time))
@@ -112,7 +111,7 @@ class Gamebase(persistent.Persistent):
 
     def remove_game(self, game: Game):
         """ callback for games that ended """
-        logger.info('remove game: %s' % game.game_type)
+        logger.debug('remove game: %s' % game.game_type)
         with lock:
             if game is None:
                 return

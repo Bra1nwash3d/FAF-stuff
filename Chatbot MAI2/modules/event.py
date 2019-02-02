@@ -1,7 +1,7 @@
 import persistent
 import time
 from modules.utils import get_logger
-from modules.types import EventType, CommandType, GameType
+from modules.types import EventType, CommandType
 
 logger = get_logger('event')
 
@@ -21,6 +21,9 @@ class Event(persistent.Persistent):
 
     def is_by(self, by):
         return self.by == by
+
+    def get_time(self):
+        return self.time
 
     def __str__(self):
         return 'Event id:{id}, type:{type}'.format(**{

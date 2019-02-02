@@ -408,42 +408,18 @@ class Plugin(object):
             %%chatevents <type> <nick> <time>
             %%chatevents command <type> <nick> <time>
         """
-        # TODO i guess move such logic to eventbase
         # TODO remove when public
         if mask.nick not in ADMINS:
             return
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'chatevents', mask.nick, target))
         if self.spam_protect_wrap(target, 'chatevents', mask, CommandType.CHATEVENTS, target, args):
             return
-        is_command = args.get('command')
         etype_, nick_, time_ = args.get('<type>'), args.get('<nick>'), args.get('<time>')
         time_ = try_fun(int, None, time_)
         id_ = self.db_root.chatbase.get_id(nick_)
-        events = self.db_root.eventbase.filter_time(t0d=time_)
-        events = self.db_root.eventbase.filter_by(id_, events=events)
-        misc_str = ''
-        if is_command:
-            # filter for command-events of command-type...
-            type_ = CommandType.from_str(etype_)
-            events = self.db_root.eventbase.filter_type([EventType.COMMAND], events=events)
-            if type_ is not None:
-                events = self.db_root.eventbase.filter_events(events, lambda e: e.command_type == type_)
-            spam_sum = sum([e.get_spam_protect_time() for e in events])
-            if len(events) > 0 and spam_sum > 0:
-                misc_str += ', with an average spam protect time of %.1fs' % (spam_sum / len(events))
-        else:
-            # filter for events of event-type...
-            type_ = EventType.from_str(etype_)
-            events = self.db_root.eventbase.filter_type([type_], events=events)
+        msg = self.db_root.eventbase.recent_events_str(etype_, id_, nick_, time_, command_events=args.get('command'))
         self.db_root.eventbase.add_command_event(CommandType.CHATEVENTS, by_=player_id(mask), target=target, args=args)
-        self.pm(mask, target, '{n} {ty}events{tp} were logged{user}{time}{misc}'.format(**{
-            'n': len(events),
-            'ty': '' if not is_command else 'command-',
-            'tp': '' if type_ is None else ' for type "%s"' % etype_,
-            'user': '' if id_ is None else ' for %s' % nick_,
-            'time': '' if time_ is None else ' in the past %d seconds' % time_,
-            'misc': misc_str,
-        }))
+        self.pm(mask, target, msg)
 
     @command()
     @nickserv_identified
@@ -662,15 +638,16 @@ class Plugin(object):
 
             %%adminreset all
             %%adminreset games
+            %%adminreset events
         """
         logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminreset', mask.nick, target))
-        all_, games = args.get('all', False), args.get('games', False)
+        all_, games, events = args.get('all', False), args.get('games', False), args.get('events', False)
         self.db_root.eventbase.add_command_event(CommandType.ADMINRESET, by_=player_id(mask),
                                                  target=target, args=args)
-        self.reset(name='manually_reset', all_=all_, games=games)
+        self.reset(name='manually_reset', all_=all_, games=games, events=events)
         self.pm(mask, mask.nick, "RESET STUFF")
 
-    def reset(self, name='reset', all_=False, games=False):
+    def reset(self, name='reset', all_=False, games=False, events=False):
         epoch = self.__db_get(['chatlvlmisc', 'epoch'])
         # maybe, just maybe, the database should be moved copied to keep old epochs accessible TODO
         self.__db_add(['chatlvlmisc'], 'epoch', epoch+1, overwrite_if_exists=True, save=True)
@@ -678,9 +655,10 @@ class Plugin(object):
         self.backup(name)
         if all_:
             self.db_root.queue.reset()
-            self.db_root.eventbase.reset()
             self.db_root.chatbase.reset()
             self.db_root.spam_protect.reset()
+        if all_ or events:
+            self.db_root.eventbase.reset()
         if all_ or games:
             self.db_root.gamebase.reset()
         self.on_restart()
