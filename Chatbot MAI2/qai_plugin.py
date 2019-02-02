@@ -125,8 +125,7 @@ class Plugin(object):
 
     @irc3.event(irc3.rfc.JOIN)
     def on_join(self, channel, mask):
-        if mask.nick == self.bot.config['nick']:
-            return
+        self.db_root.chatbase.on_join(ChatType.IRC, player_id(mask), mask.nick, channel_id=channel)
 
     @irc3.event(irc3.rfc.PRIVMSG)
     async def on_privmsg(self, *args, **kwargs):
@@ -136,11 +135,7 @@ class Plugin(object):
         if sender.startswith("NickServ!"):
             self.__handle_nickserv_message(msg)
             return
-        nick, id_ = sender.nick, player_id(sender)
-        self.on_chat_msg('irc', msg, channel, nick, id_)
-
-    def on_chat_msg(self, medium, msg, channel, nick, id_):
-        self.db_root.chatbase.on_chat(msg, id_, nick, channel_id=channel)
+        self.db_root.chatbase.on_chat(msg, player_id(sender), sender.nick, channel_id=channel)
 
     @irc3.event(irc3.rfc.KICK)
     async def on_kick(self, *args, **kwargs):

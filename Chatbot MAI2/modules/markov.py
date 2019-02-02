@@ -8,16 +8,21 @@ from modules.utils import get_logger
 logger = get_logger('markov')
 
 # dict keys
-WF = 'wordsF'       # words forward
-UF = 'usesF'        # uses forward
-WB = 'wordsB'       # words backward
-UB = 'usesB'        # uses backward
-WD = 'disabled'     # word disabled
-CS = 'start'        # counter start sentence with word
-CE = 'end'          # counter end sentence with word
+WF = 'wf'   # words forward
+UF = 'uf'   # uses forward
+WB = 'wb'   # words backward
+UB = 'ub'   # uses backward
+WD = 'wd'   # word disabled
+CS = 'cs'   # counter start sentence with word
+CE = 'ce'   # counter end sentence with word
 
 
 class Markov:
+    """
+    create word chains, based on how likely words appear in sequence in the given sample data
+    create a new wordfile based on /quick_tests/create_markov_json.py, just feed some raw text
+    """
+
     def __init__(self, plugin, wordfilepath, min_chain_length=4, max_chain_length=20, chain_length_chance=0.92):
         self.plugin = plugin
         self.wordfilepath = wordfilepath
@@ -35,9 +40,8 @@ class Markov:
     def get_info(self):
         return "[path: " + self.wordfilepath + ", count: " + str(len(self.markovwords)) + "]"
 
-    def save(self, path=False):
-        if not path:
-            path = self.wordfilepath
+    def save(self, path=None):
+        path = path if path is not None else self.wordfilepath
         with io.open(path, 'w+', encoding='utf8') as file:
             file.write(json.dumps(self.markovwords, indent=2, ensure_ascii=False))
             file.close()

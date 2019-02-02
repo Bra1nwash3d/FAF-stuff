@@ -4,12 +4,13 @@ import transaction
 import time
 from heapq import nlargest, nsmallest
 from modules.utils import get_logger, not_pinging_name, get_lock, time_to_str
+from modules.utils import get_msg_fun as gmf
 from modules.chatentity import ChatEntity
 from modules.callbackqueue import CallbackQueue
 from modules.callbackitem import CallbackItem
 from modules.eventbase import Eventbase
 from modules.timer import SpamProtect
-from modules.types import PointType
+from modules.types import PointType, ChatType
 from modules.effectbase import EffectBase
 
 logger = get_logger('chatbase')
@@ -22,8 +23,9 @@ class Chatbase(persistent.Persistent):
         self.entities = BTrees.OOBTree.BTree()
         self.nick_to_id = persistent.dict.PersistentDict()
         self.ignored_players = persistent.dict.PersistentDict()  # these can not get points from chatting
-        self.chat_channels = persistent.dict.PersistentDict()  # in these one can get points from chatting
-        self.game_channels = persistent.dict.PersistentDict()  # in these one can play chat games
+        self.chat_channels = persistent.dict.PersistentDict()    # in these one can get points from chatting
+        self.game_channels = persistent.dict.PersistentDict()    # in these one can play chat games
+        self.join_messages = persistent.dict.PersistentDict()    # {name: msg} when special users join channels
         self.eventbase = eventbase
         self.effectbase = effectbase
         self.spam_protect = spam_protect
@@ -90,7 +92,7 @@ class Chatbase(persistent.Persistent):
                 return None
             return self.nick_to_id.get(nick, None)
 
-    def get_k(self, k=5, largest=True, incl_players=True, incl_channels=True, point_type: PointType=None):
+    def get_k(self, k=5, largest=True, incl_players=True, incl_channels=True, point_type: PointType=None) -> list:
         """ get k of a group, filtered by """
         with lock:
             fun, default = (nlargest, -999999999) if largest else (nsmallest, 99999999999)
@@ -106,17 +108,31 @@ class Chatbase(persistent.Persistent):
 
     def get_k_points_str(self, point_type: PointType=None, **kwargs) -> str:
         with lock:
+            entities = self.get_k(**kwargs, point_type=point_type)
+            self.__update_rankings(entities, **kwargs, point_type=point_type)
             if point_type is None:
                 # special text for point sum, as we can use levels
-                return ', '.join(['%s (level %d)' % (not_pinging_name(e.nick), e.get_level())
-                                  for e in self.get_k(**kwargs, point_type=point_type)])
-            return ', '.join(['%s (%d points)' % (not_pinging_name(e.nick), e.get_points(point_type))
-                              for e in self.get_k(**kwargs, point_type=point_type)])
+                return ', '.join(['%s (level %d)' % (not_pinging_name(e.nick), e.get_level()) for e in entities])
+            return ', '.join(['%s (%d points)'
+                              % (not_pinging_name(e.nick), e.get_points(point_type)) for e in entities])
 
-    def get_k_most_points_str(self, **kwargs) -> str:
-        with lock:
-            kwargs['largest'] = True
-            return 'Most points: %s' % self.get_k_points_str(**kwargs)
+    def __update_rankings(self, entities: [ChatEntity], largest=True, incl_players=True, incl_channels=True,
+                          point_type: PointType=None):
+        """ updates on_join strings for players """
+        # to extend for more point types, probably best to store top players in new dict {pointtype: {name, ranking}}
+        # and update that, then renew all on_join strings
+
+        # top chatwarriors
+        if incl_players and not incl_channels and largest:
+            # point sum
+            if point_type is None:
+                self.join_messages.clear()
+                for i, e in enumerate(entities):
+                    self.join_messages[e.id] =\
+                        'Behold! {name}, currently rank %d on the chatlvl ladder, has joined this chat!' % (i+1)
+                    if i >= 4:
+                        break
+                self.save()
 
     def print(self):
         with lock:
@@ -142,7 +158,7 @@ class Chatbase(persistent.Persistent):
             self.get(player_id).update_points(points*chat_mult, player_nick, type_=point_type, partial=partial)
             self.nick_to_id[player_nick] = player_id
 
-    def on_chat(self, msg, player_id: str, player_nick=None, channel_id=None):
+    def on_chat(self, msg: str, player_id: str, player_nick=None, channel_id=None):
         with lock:
             if channel_id not in self.chat_channels:
                 return
@@ -150,6 +166,14 @@ class Chatbase(persistent.Persistent):
                 return
             chat_mult, points = 1, self.str_to_points(msg)
             self.__generic_on_something(points, player_id, PointType.CHAT, player_nick, channel_id)
+
+    def on_join(self, medium: ChatType, player_id: str, player_nick, channel_id=None):
+        msg = self.get(player_id).join_message
+        if msg is None:
+            msg = self.join_messages.get(player_id)
+        if msg is None:
+            return
+        gmf(medium)(channel_id, msg.format(name=player_nick))
 
     def on_kick(self, by: str, target: str, channel: str, msg: str):
         with lock:

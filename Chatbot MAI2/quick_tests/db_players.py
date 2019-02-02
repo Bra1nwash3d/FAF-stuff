@@ -38,7 +38,6 @@ class X:
         print(self.db_root.chatbase.get_k_points_str())
         print(self.db_root.chatbase.get_k_points_str(largest=False))
         print(self.db_root.chatbase.get_k_points_str(incl_channels=False))
-        print(self.db_root.chatbase.get_k_most_points_str(incl_channels=False))
 
 
 x = X()

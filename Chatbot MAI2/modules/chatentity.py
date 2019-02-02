@@ -22,6 +22,7 @@ class ChatEntity(persistent.Persistent):
         self.items = persistent.dict.PersistentDict()
         self.mults = persistent.dict.PersistentDict()
         self.effects = persistent.list.PersistentList()
+        self.join_message = None
         # TODO effects, add, on_change, queue, ...
 
     def migrate(self):
