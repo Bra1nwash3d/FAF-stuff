@@ -1,0 +1,87 @@
+{
+  "test1": {
+    "name": "testeffect1",
+    "increases": {},
+    "multipliers": {
+      "chat": 3.0
+    },
+    "group": "test",
+    "duration": 20
+  },
+  "test2": {
+    "name": "testeffect2",
+    "increases": {
+      "chat": 0.1
+    },
+    "multipliers": {
+      "chat": 1.2
+    },
+    "group": "test",
+    "duration": 60
+  },
+  "chattip": {
+    "name": "chattiptesteffect",
+    "increases": {},
+    "multipliers": {
+      "chattip": 2.0
+    },
+    "group": "test",
+    "duration": 120
+  },
+
+
+  "game_win1": {
+    "name": "Winner's delight",
+    "increases": {
+      "chat": 0.1
+    },
+    "multipliers": {},
+    "group": "game_win",
+    "duration": 120
+  },
+  "game_win2": {
+    "name": "Winner's bliss",
+    "increases": {
+      "chat": 0.25
+    },
+    "multipliers": {},
+    "group": "game_win",
+    "duration": 120
+  },
+  "game_win3": {
+    "name": "Winner's ecstasy",
+    "increases": {
+      "chat": 0.5
+    },
+    "multipliers": {},
+    "group": "game_win",
+    "duration": 120
+  },
+  "game_loss1": {
+    "name": "Loser's sadness",
+    "increases": {},
+    "multipliers": {
+      "chat": 0.9
+    },
+    "group": "game_loss",
+    "duration": 120
+  },
+  "game_loss2": {
+    "name": "Loss's grief",
+    "increases": {},
+    "multipliers": {
+      "chat": 0.75
+    },
+    "group": "game_loss",
+    "duration": 120
+  },
+  "game_loss3": {
+    "name": "Loser's suffering",
+    "increases": {},
+    "multipliers": {
+      "chat": 0.5
+    },
+    "group": "game_loss",
+    "duration": 120
+  }
+}

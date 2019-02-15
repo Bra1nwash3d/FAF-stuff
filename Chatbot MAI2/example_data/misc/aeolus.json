@@ -1,0 +1,739 @@
+{
+  "things": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "are": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "are": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "not": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "things": 1
+    }
+  },
+  "not": {
+    "ce": 0,
+    "uf": 3,
+    "wf": {
+      "so": 1,
+      "be": 1,
+      "what": 1
+    },
+    "cs": 0,
+    "ub": 3,
+    "wb": {
+      "are": 1,
+      "should": 1,
+      "that's": 1
+    }
+  },
+  "so": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "black": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "not": 1
+    }
+  },
+  "black": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "and": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "so": 1
+    }
+  },
+  "and": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "white,": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "black": 1
+    }
+  },
+  "white,": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "just": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "and": 1
+    }
+  },
+  "just": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "because": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "white,": 1
+    }
+  },
+  "because": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "in": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "just": 1
+    }
+  },
+  "in": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "theory": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "because": 1
+    }
+  },
+  "theory": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "it's": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "in": 1
+    }
+  },
+  "it's": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "possible": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "theory": 1
+    }
+  },
+  "possible": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "to": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "it's": 1
+    }
+  },
+  "to": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "do": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "possible": 1
+    }
+  },
+  "do": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "maphack,": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "to": 1
+    }
+  },
+  "maphack,": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "doesn't": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "do": 1
+    }
+  },
+  "doesn't": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "mean": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "maphack,": 1
+    }
+  },
+  "mean": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "that": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "doesn't": 1
+    }
+  },
+  "that": {
+    "ce": 1,
+    "uf": 3,
+    "wf": {
+      "a": 1,
+      "removed": 1
+    },
+    "cs": 0,
+    "ub": 3,
+    "wb": {
+      "mean": 1,
+      "command": 1,
+      "me": 1
+    }
+  },
+  "a": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "console": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "that": 1
+    }
+  },
+  "console": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "command": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "a": 1
+    }
+  },
+  "command": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "that": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "console": 1
+    }
+  },
+  "removed": {
+    "ce": 1,
+    "uf": 2,
+    "wf": {
+      "fog": 1
+    },
+    "cs": 0,
+    "ub": 2,
+    "wb": {
+      "that": 1,
+      "be": 1
+    }
+  },
+  "fog": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "of": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "removed": 1
+    }
+  },
+  "of": {
+    "ce": 0,
+    "uf": 2,
+    "wf": {
+      "war": 1,
+      "the": 1
+    },
+    "cs": 0,
+    "ub": 2,
+    "wb": {
+      "fog": 1,
+      "iteration": 1
+    }
+  },
+  "war": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "should": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "of": 1
+    }
+  },
+  "should": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "not": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "war": 1
+    }
+  },
+  "be": {
+    "ce": 0,
+    "uf": 2,
+    "wf": {
+      "removed": 1,
+      "too": 1
+    },
+    "cs": 0,
+    "ub": 2,
+    "wb": {
+      "not": 1,
+      "wont": 1
+    }
+  },
+  "assuming": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "there": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "there": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "wont": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "assuming": 1
+    }
+  },
+  "wont": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "be": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "there": 1
+    }
+  },
+  "too": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "much": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "be": 1
+    }
+  },
+  "much": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "iteration": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "too": 1
+    }
+  },
+  "iteration": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "of": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "much": 1
+    }
+  },
+  "the": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "same": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "of": 1
+    }
+  },
+  "same": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "cheat?": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "the": 1
+    }
+  },
+  "cheat?": {
+    "ce": 1,
+    "uf": 1,
+    "wf": {},
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "same": 1
+    }
+  },
+  "What": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "mod": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "mod": {
+    "ce": 1,
+    "uf": 3,
+    "wf": {
+      "or": 1,
+      "provoked": 1
+    },
+    "cs": 0,
+    "ub": 3,
+    "wb": {
+      "What": 1,
+      "suspected": 1,
+      "micro": 1
+    }
+  },
+  "or": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "suspected": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "mod": 1
+    }
+  },
+  "suspected": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "mod": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "or": 1
+    }
+  },
+  "provoked": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "this": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "mod": 1
+    }
+  },
+  "this": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "conversation?": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "provoked": 1
+    }
+  },
+  "conversation?": {
+    "ce": 1,
+    "uf": 1,
+    "wf": {},
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "this": 1
+    }
+  },
+  "automatic": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "bomber": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "bomber": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "micro": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "automatic": 1
+    }
+  },
+  "micro": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "mod": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "bomber": 1
+    }
+  },
+  "keyser": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "BrutalMoustache": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "BrutalMoustache": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "fixed": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "keyser": 1
+    }
+  },
+  "fixed": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "it!": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "BrutalMoustache": 1
+    }
+  },
+  "it!": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      ":)": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "fixed": 1
+    }
+  },
+  ":)": {
+    "ce": 1,
+    "uf": 1,
+    "wf": {},
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "it!": 1
+    }
+  },
+  "Vee": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "Washy": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "Washy": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "showed": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "Vee": 1
+    }
+  },
+  "showed": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "me": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "Washy": 1
+    }
+  },
+  "me": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "that": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "showed": 1
+    }
+  },
+  "No": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "Vee,": 1
+    },
+    "cs": 1,
+    "ub": 1,
+    "wb": {}
+  },
+  "Vee,": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "that's": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "No": 1
+    }
+  },
+  "that's": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "not": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "Vee,": 1
+    }
+  },
+  "what": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "I'm": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "not": 1
+    }
+  },
+  "I'm": {
+    "ce": 0,
+    "uf": 1,
+    "wf": {
+      "saying": 1
+    },
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "what": 1
+    }
+  },
+  "saying": {
+    "ce": 1,
+    "uf": 1,
+    "wf": {},
+    "cs": 0,
+    "ub": 1,
+    "wb": {
+      "I'm": 1
+    }
+  }
+}

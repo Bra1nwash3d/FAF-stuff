@@ -1,0 +1,18 @@
+{
+  "test1": {
+    "name": "testitem1",
+    "description": "test item!",
+    "type": "effectitem",
+    "effect": "test1",
+    "uses": 1,
+    "visible": true
+  },
+  "test2": {
+    "name": "testitem2",
+    "description": "test item!",
+    "type": "effectitem",
+    "effect": "test1",
+    "uses": 2,
+    "visible": false
+  }
+}
