@@ -12,15 +12,13 @@ from modules.eventbase import Eventbase
 from modules.timer import SpamProtect
 from modules.types import PointType, ChatType
 from modules.effectbase import EffectBase
-from modules.itembase import ItemBase
 
 logger = get_logger('chatbase')
 lock = get_lock('chatbase')
 
 
 class Chatbase(persistent.Persistent):
-    def __init__(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue,
-                 effectbase: EffectBase, itembase: ItemBase):
+    def __init__(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue, effectbase: EffectBase):
         super(Chatbase, self).__init__()
         self.entities = BTrees.OOBTree.BTree()
         self.nick_to_id = persistent.dict.PersistentDict()
@@ -30,7 +28,6 @@ class Chatbase(persistent.Persistent):
         self.join_messages = persistent.dict.PersistentDict()    # {name: msg} when special users join channels
         self.eventbase = eventbase
         self.effectbase = effectbase
-        self.itembase = itembase
         self.spam_protect = spam_protect
         self.queue = queue
 
@@ -41,12 +38,10 @@ class Chatbase(persistent.Persistent):
         self.save()
         logger.info('Created new Chatbase')
 
-    def set(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue,
-            effectbase: EffectBase, itembase: ItemBase):
+    def set(self, eventbase: Eventbase, spam_protect: SpamProtect, queue: CallbackQueue, effectbase: EffectBase):
         self.eventbase = eventbase
         self.effectbase = effectbase
         self.spam_protect = spam_protect
-        self.itembase = itembase
         self.queue = queue
 
     def reset(self):
@@ -250,22 +245,6 @@ class Chatbase(persistent.Persistent):
             if target_id is not None:
                 target = self.get(target_id, is_nick=is_target_nick)
             return item.use(user, target)
-
-    def add_item(self, player_id: str, item_id: str, is_player_nick=True, is_item_name=False) -> str:
-        with lock:
-            item = self.itembase.get_item(item_id, is_name=is_item_name)
-            if item is None:
-                return 'Failed creating item! Id does probably not exist...'
-            self.get(player_id, is_nick=is_player_nick).add_usable_item(item)
-            return 'Gave item %s to %s' % (item.item_id, player_id)
-        pass
-
-    def add_test_item(self, id_: str):
-        with lock:
-            item = self.itembase.test_item()
-            logger.info(item.to_str())
-            self.get(id_).add_usable_item(item)
-        pass
 
     def add_to_ignore(self, id_: str, is_nick=False, duration=None) -> str:
         """ add a player to the ignore list """

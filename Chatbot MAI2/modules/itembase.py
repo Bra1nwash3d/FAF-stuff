@@ -2,6 +2,7 @@ import persistent.dict
 import transaction
 import json
 from modules.callbackqueue import CallbackQueue
+from modules.chatbase import Chatbase
 from modules.effectbase import EffectBase
 from modules.items.effectitem import EffectItem
 from modules.utils import get_logger, get_lock
@@ -16,19 +17,21 @@ class ItemBase(persistent.Persistent):
     Also functions as market to buy items from
     """
 
-    def __init__(self, queue: CallbackQueue, effectbase: EffectBase, json_path=None):
+    def __init__(self, queue: CallbackQueue, effectbase: EffectBase, chatbase: Chatbase, json_path=None):
         self.json_path = json_path
         self.next_id = 0
         self.queue = queue
         self.effectbase = effectbase
+        self.chatbase = chatbase
         self.items = persistent.dict.PersistentDict()
         self.itemname_to_itemid = persistent.dict.PersistentDict()
         self.update_items_list(self.json_path)
         logger.info('Creating new ItemBase')
 
-    def set(self, queue: CallbackQueue, effectbase: EffectBase):
+    def set(self, queue: CallbackQueue, effectbase: EffectBase, chatbase: Chatbase):
         self.queue = queue
         self.effectbase = effectbase
+        self.chatbase = chatbase
 
     def reset(self):
         with lock:
@@ -73,6 +76,22 @@ class ItemBase(persistent.Persistent):
                 return EffectItem(self.__next_id(), id_, cfg.get('name'), cfg.get('description'), effect,
                                   cfg.get('visible'), cfg.get('uses'))
             return None
+
+    def add_item(self, player_id: str, item_id: str, is_player_nick=True, is_item_name=False) -> str:
+        with lock:
+            item = self.get_item(item_id, is_name=is_item_name)
+            if item is None:
+                return 'Failed creating item! Id does probably not exist...'
+            self.chatbase.get(player_id, is_nick=is_player_nick).add_usable_item(item)
+            return 'Gave item %s to %s' % (item.item_id, player_id)
+        pass
+
+    def add_test_item(self, id_: str):
+        with lock:
+            item = self.test_item()
+            logger.info(item.to_str())
+            self.chatbase.get(id_).add_usable_item(item)
+        pass
 
     def test_item(self):
         return self.get_item('test1')

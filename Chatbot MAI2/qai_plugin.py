@@ -12,8 +12,9 @@ import ZODB
 import ZODB.FileStorage
 
 from decorators import nickserv_identified
-from modules import chatbase, eventbase
 from modules.timer import SpamProtect
+from modules.chatbase import Chatbase
+from modules.eventbase import Eventbase
 from modules.effectbase import EffectBase
 from modules.gamebase import Gamebase
 from modules.itembase import ItemBase
@@ -83,14 +84,6 @@ class Plugin(object):
             self.db_root.effectbase = EffectBase(self.db_root.queue)
         self.db_root.effectbase.migrate()
 
-        itembase_args = [self.db_root.queue, self.db_root.effectbase]
-        try:
-            self.db_root.itembase.set(*itembase_args)
-            self.db_root.itembase.print()
-        except:
-            self.db_root.itembase = ItemBase(*itembase_args)
-        self.db_root.itembase.migrate()
-
         try:
             self.db_root.spam_protect.print()
         except:
@@ -100,17 +93,24 @@ class Plugin(object):
         try:
             self.db_root.eventbase.print()
         except:
-            self.db_root.eventbase = eventbase.Eventbase()
+            self.db_root.eventbase = Eventbase()
         self.db_root.eventbase.migrate()
 
-        chatbase_args = [self.db_root.eventbase, self.db_root.spam_protect, self.db_root.queue, self.db_root.effectbase,
-                         self.db_root.itembase]
+        chatbase_args = [self.db_root.eventbase, self.db_root.spam_protect, self.db_root.queue, self.db_root.effectbase]
         try:
             self.db_root.chatbase.set(*chatbase_args)
             self.db_root.chatbase.print()
         except:
-            self.db_root.chatbase = chatbase.Chatbase(*chatbase_args)
+            self.db_root.chatbase = Chatbase(*chatbase_args)
         self.db_root.chatbase.migrate()
+
+        itembase_args = [self.db_root.queue, self.db_root.effectbase, self.db_root.chatbase]
+        try:
+            self.db_root.itembase.set(*itembase_args)
+            self.db_root.itembase.print()
+        except:
+            self.db_root.itembase = ItemBase(*itembase_args)
+        self.db_root.itembase.migrate()
 
         gamebase_args = [self.db_root.eventbase, self.db_root.queue, self.db_root.chatbase,
                          self.db_root.effectbase, self.db_root.spam_protect]
@@ -529,7 +529,7 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.CHATROULETTE, by_=player_id(mask),
                                                  target=target, args=args)
 
-    @command(show_in_help_list=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     async def test(self, mask, target, args):
         """ Just testing stuff
 
@@ -541,10 +541,10 @@ class Plugin(object):
         name = args.get('<name>')
         name = mask.nick if name is None else name
         id_ = self.db_root.chatbase.get_id(name)
-        self.db_root.chatbase.add_test_item(id_)
+        self.db_root.itembase.add_test_item(id_)
         self.pm(mask, target, 'Adding test item to %s:%s' % (name, id_))
 
-    @command(permission='admin', show_in_help_list=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def cd(self, mask, target, args):
         """ Set cooldowns
@@ -569,7 +569,7 @@ class Plugin(object):
             self.pm(mask, target, 'The cooldown for %s is now changed to %i' % (timer, timers[timer]))
         self.db_root.eventbase.add_command_event(CommandType.CD, by_=player_id(mask), target=target, args=args)
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def reload(self, mask, target, args):
         """ Reload bot components
@@ -593,7 +593,7 @@ class Plugin(object):
         for i in range(1, len(all_relevant_backups) - keep):
             shutil.rmtree(all_relevant_backups[i])
 
-    @command(show_in_help_list=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def adminbackup(self, mask, target, args):
         """ Back up the db
@@ -606,7 +606,7 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.ADMINBACKUP, by_=player_id(mask),
                                                  target=target, args=args)
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def admineffects(self, mask, target, args):
         """ Abuse admin powers to fiddle with effects
@@ -620,7 +620,7 @@ class Plugin(object):
         self.db_root.eventbase.add_command_event(CommandType.ADMINEFFECTS, by_=player_id(mask),
                                                  target=target, args=args)
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def adminitems(self, mask, target, args):
         """ Abuse admin powers to fiddle with items
@@ -629,12 +629,12 @@ class Plugin(object):
         """
         logger.info('%d, cmd %s, %s, %s' % (time.time(), 'adminitems', mask.nick, target))
         name, item_id = args.get('<name>'), args.get('<itemid>')
-        msg = self.db_root.chatbase.add_item(name, item_id, is_player_nick=True, is_item_name=False)
+        msg = self.db_root.itembase.add_item(name, item_id, is_player_nick=True, is_item_name=False)
         self.pm(mask, mask.nick, msg)
         self.db_root.eventbase.add_command_event(CommandType.ADMINITEMS, by_=player_id(mask),
                                                  target=target, args=args)
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
     def adminignore(self, mask, target, args):
         """ Change the ignore list
@@ -657,7 +657,7 @@ class Plugin(object):
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @asyncio.coroutine
     def adminchannels(self, mask, target, args):
         """ Change list of channels where one can get points for chatting;
@@ -694,7 +694,7 @@ class Plugin(object):
                                                  target=target, args=args)
         self.pm(mask, mask.nick, response)
 
-    @command(permission='admin', public=False)
+    @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def adminreset(self, mask, target, args):
         """ Abuse admin powers to reset everything
@@ -736,7 +736,7 @@ class Plugin(object):
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'hidden', mask.nick, target))
         words = ["join", "leave", "cd", "reload", "adminbackup", "admineffects", "adminignore", "adminchannels",
-                 "adminreset"]
+                 "adminreset", "test"]
         self.bot.privmsg(mask.nick, "Hidden commands (!help <command> for more info):")
         self.bot.privmsg(mask.nick, ", ".join(words))
         self.db_root.eventbase.add_command_event(CommandType.HIDDEN, by_=player_id(mask), target=target, args=args)

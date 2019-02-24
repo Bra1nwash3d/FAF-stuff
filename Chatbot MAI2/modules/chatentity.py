@@ -166,10 +166,10 @@ class ChatEntity(persistent.Persistent):
         return '\n'.join(msg)
 
     def get_usable_items_message(self, show_hidden=False) -> str:
-        items = self.useable_items
+        items, hidden_items = self.useable_items, self.useable_items
         if not show_hidden:
-            items, _ = UsableItem.split_visible_hidden(list(self.useable_items.values()))
-        num = len(items)
+            items, hidden_items = UsableItem.split_visible_hidden(list(self.useable_items.values()))
+        num, numh = len(items), len(hidden_items)
         if num == 0:
             return '%s has no items!' % self.nick
         msg = ['%s has %d items:' % (self.nick, num)]
