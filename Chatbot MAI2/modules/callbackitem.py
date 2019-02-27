@@ -13,6 +13,7 @@ class CallbackItem(persistent.Persistent):
 
     def __init__(self, seconds, fun, *args, **kwargs):
         super(CallbackItem, self).__init__()
+        logger.info('cbitem args: %s' % str(args))
         self.time = seconds + time.time()
         self.fun = fun
         self.args = args

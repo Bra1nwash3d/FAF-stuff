@@ -39,6 +39,7 @@ class CommandType(enum.Enum):
     CHATLVL = 'chatlvl'
     CHATEFFECTS = 'chateffects'
     CHATITEMS = 'chatitems'
+    MARKET = 'market'
     USEITEM = 'useitem'
     CHATLADDER = 'chatladder'
     CHATEVENTS = 'chatevents'

@@ -15,13 +15,11 @@ class EffectBase(persistent.Persistent):
     Loads effect configuations from a json file, creates Effect objects
     """
 
-    def __init__(self, queue: CallbackQueue, json_path=None):
-        self.json_path = json_path
+    def __init__(self, queue: CallbackQueue):
         self.next_id = 0
         self.queue = queue
         self.effects = persistent.dict.PersistentDict()
         self.effectname_to_effectid = persistent.dict.PersistentDict()
-        self.update_effects_list(self.json_path)
         logger.info('Creating new EffectBase')
 
     def set(self, queue: CallbackQueue):
@@ -51,11 +49,10 @@ class EffectBase(persistent.Persistent):
             self._p_changed = True
             transaction.commit()
 
-    def update_effects_list(self, json_path=None):
+    def update_effects_list(self, json_path):
         with lock:
-            self.json_path = json_path if json_path is not None else self.json_path
             try:
-                with open(self.json_path, 'r+') as file:
+                with open(json_path, 'r+') as file:
                     effects = json.load(file)
                 self.effects.clear()
                 self.effectname_to_effectid.clear()
@@ -63,10 +60,10 @@ class EffectBase(persistent.Persistent):
                 for k, v in self.effects.items():
                     self.effectname_to_effectid[v.get('name')] = k
                 self.save()
-                logger.info('EffectBase updated from %s' % self.json_path)
+                logger.info('EffectBase updated from %s' % json_path)
             except Exception as e:
                 logger.info(str(e))
-                logger.info('EffectBase failed updating from %s' % self.json_path)
+                logger.info('EffectBase failed updating from %s' % json_path)
 
     def print(self):
         with lock:

@@ -18,6 +18,8 @@ autosave = 600
 chat_db = ./data/chat/data.fs
 markov_aeolus = ./data/misc/aeolus.json
 effects_file = ./data/misc/effects.json
+items_file = ./data/misc/items.json
+markets_file = ./data/misc/markets.json
 backups_path = ./data/backups/
 
 autojoins =

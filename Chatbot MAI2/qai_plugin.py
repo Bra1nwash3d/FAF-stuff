@@ -235,6 +235,7 @@ class Plugin(object):
 
         # update stuff
         self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
+        self.db_root.itembase.update_markets(self.bot.config['markets_file'])
         self.db_root.itembase.update_items_list(self.bot.config['items_file'])
         self.db_root.spam_protect.update_timer(self.__db_get(['timers']))
         vars_ = self.__db_get(['vars'])
@@ -569,17 +570,54 @@ class Plugin(object):
             self.pm(mask, target, 'The cooldown for %s is now changed to %i' % (timer, timers[timer]))
         self.db_root.eventbase.add_command_event(CommandType.CD, by_=player_id(mask), target=target, args=args)
 
+    @command
+    @asyncio.coroutine
+    def market(self, mask, target, args):
+        """ Command to interact with the item markets
+
+            %%market list
+            %%market <market_name>
+        """
+        # TODO remove when public
+        if mask.nick not in ADMINS:
+            return
+        logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'market', mask.nick, target))
+        market_name, list_ = args.get('<market_name>'), args.get('list')
+        is_spam, rem_time = self.db_root.spam_protect.is_spam(target, 'market')
+        location = mask.nick if is_spam else target
+        id_ = player_id(mask)
+        try:
+            if list_:
+                # list available markets
+                markets = self.db_root.itembase.get_available_markets(id_, is_player_nick=False)
+                self.pm(mask, location, 'Markets that are available to you: %s' % ', '.join(markets))
+            else:
+                # list items on target market
+                item_list = self.db_root.itembase.get_market_items(market_name, id_, is_player_nick=False)
+                self.pm(mask, location, 'Available items on the %s market:' % market_name)
+                for item in item_list:
+                    self.pm(mask, location, '- %s' % item)
+        except Exception as e:
+            self.pm(mask, location, str(e))
+        self.db_root.eventbase.add_command_event(CommandType.MARKET, by_=id_, target=target, args=args)
+
     @command(permission='admin', public=False, show_in_help_list=False)
     @nickserv_identified
     async def reload(self, mask, target, args):
         """ Reload bot components
 
+            %%reload all
             %%reload effects
+            %%reload items
+            %%reload markets
         """
         logger.debug('%d, cmd %s, %s, %s' % (time.time(), 'reload', mask.nick, target))
-        if args.get('effects'):
+        if args.get('all') or args.get('effects'):
             self.db_root.effectbase.update_effects_list(self.bot.config['effects_file'])
+        if args.get('all') or args.get('items'):
             self.db_root.itembase.update_items_list(self.bot.config['items_file'])
+        if args.get('all') or args.get('markets'):
+            self.db_root.itembase.update_markets(self.bot.config['markets_file'])
         self.db_root.eventbase.add_command_event(CommandType.RELOAD, by_=player_id(mask), target=target, args=args)
 
     def backup(self, name='backup', keep=3):
